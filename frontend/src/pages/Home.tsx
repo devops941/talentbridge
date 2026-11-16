@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import api from '../services/api';
 import { 
   Award, 
   Sparkles, 
@@ -16,12 +17,58 @@ import {
   Sliders, 
   Cpu, 
   Lock,
-  GitBranch
+  GitBranch,
+  MapPin,
+  Clock,
+  Send,
+  Search,
+  Filter
 } from 'lucide-react';
+import { ApplyModal } from '../components/candidate/ApplyModal';
 
 export const Home: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+
+  // Public Jobs State
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDept, setSelectedDept] = useState('ALL');
+
+  // Application Modal State
+  const [selectedJob, setSelectedJob] = useState<any | null>(null);
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+
+  useEffect(() => {
+    // Fetch live active jobs from MongoDB
+    api.get('/jobs')
+      .then((res) => setJobs(res.data || []))
+      .catch((err) => console.error('Failed to load jobs:', err))
+      .finally(() => setLoadingJobs(false));
+  }, []);
+
+  const handleOpenApply = (job: any) => {
+    setSelectedJob(job);
+    setIsApplyModalOpen(true);
+  };
+
+  // Filter jobs based on search term & department
+  const filteredJobs = jobs.filter((j) => {
+    const isOpen = j.status === 'PUBLISHED' || j.status === 'OPEN';
+    if (!isOpen) return false;
+
+    const matchesSearch = 
+      j.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      j.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      j.skills?.some((s: any) => s.skill_name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesDept = selectedDept === 'ALL' || j.department.toLowerCase().includes(selectedDept.toLowerCase());
+
+    return matchesSearch && matchesDept;
+  });
+
+  const uniqueDepartments = Array.from(new Set(jobs.map((j) => j.department))).filter(Boolean);
 
   return (
     <div className="min-vh-100 d-flex flex-column bg-white">
@@ -37,10 +84,10 @@ export const Home: React.FC = () => {
           </Link>
 
           <div className="d-flex align-items-center gap-3">
+            <a href="#open-roles" className="text-decoration-none text-secondary small fw-medium d-none d-md-inline">Open Positions</a>
             <a href="#features" className="text-decoration-none text-secondary small fw-medium d-none d-md-inline">Features</a>
             <a href="#algorithm" className="text-decoration-none text-secondary small fw-medium d-none d-md-inline">Scoring Formula</a>
             <a href="#architecture" className="text-decoration-none text-secondary small fw-medium d-none d-md-inline">Architecture</a>
-            <a href="#database" className="text-decoration-none text-secondary small fw-medium d-none d-md-inline">MongoDB Atlas</a>
 
             {isAuthenticated ? (
               <button 
@@ -61,105 +108,424 @@ export const Home: React.FC = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="bg-gradient-hero py-5 py-lg-6 border-bottom">
-        <div className="container py-4">
+      {/* Hero Section — Revamped Executive Modern AI Studio Theme */}
+      <section 
+        className="py-5 py-lg-6 border-bottom position-relative overflow-hidden"
+        style={{
+          background: 'radial-gradient(120% 90% at 50% 0%, #ECFDF5 0%, #F0FDFA 35%, #F8FAFC 75%, #FFFFFF 100%)'
+        }}
+      >
+        {/* Subtle Ambient Light Orbs */}
+        <div 
+          className="position-absolute rounded-circle" 
+          style={{
+            width: '450px',
+            height: '450px',
+            background: 'radial-gradient(circle, rgba(0, 168, 150, 0.12) 0%, transparent 70%)',
+            top: '-10%',
+            left: '5%',
+            filter: 'blur(40px)',
+            pointerEvents: 'none'
+          }}
+        />
+        <div 
+          className="position-absolute rounded-circle" 
+          style={{
+            width: '400px',
+            height: '400px',
+            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+            top: '20%',
+            right: '0%',
+            filter: 'blur(40px)',
+            pointerEvents: 'none'
+          }}
+        />
+
+        <div className="container py-4 position-relative z-1">
           <div className="row align-items-center g-5">
-            <div className="col-12 col-lg-7">
-              <div className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-white border shadow-sm mb-3">
-                <Sparkles size={16} className="text-teal" />
-                <span className="small fw-semibold text-secondary">
-                  Natural Language Processing & Explainable Decision Support
+            {/* Left Column: Headline, Description & Calls to Action */}
+            <div className="col-12 col-lg-6">
+              <div 
+                className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill mb-3 border shadow-xs"
+                style={{ backgroundColor: '#FFFFFF', borderColor: '#CCFBF1' }}
+              >
+                <Sparkles size={15} style={{ color: '#00A896' }} />
+                <span className="small fw-semibold" style={{ color: '#0F766E', fontSize: '12.5px' }}>
+                  Next-Gen AI Recruitment &bull; Explainable Decision Support
                 </span>
               </div>
-              <h1 className="display-4 fw-bold text-dark lh-sm mb-3">
-                Intelligent Candidate <span className="text-teal">Screening & Ranking</span> System
+
+              <h1 className="display-4 fw-bolder text-dark lh-sm mb-3" style={{ letterSpacing: '-1px' }}>
+                Intelligent Candidate{' '}
+                <span 
+                  style={{
+                    background: 'linear-gradient(135deg, #00A896 0%, #028090 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}
+                >
+                  Screening & Ranking
+                </span>
               </h1>
-              <p className="lead text-secondary mb-4" style={{ fontSize: '1.15rem' }}>
-                TalentBridge automates PDF resume extraction, identifies technical skills through a curated NLP taxonomy, and calculates explainable suitability scores with zero algorithmic bias.
+
+              <p className="lead text-secondary mb-4" style={{ fontSize: '15px', lineHeight: 1.65, maxWidth: '520px' }}>
+                Automate candidate PDF resume ingestion with PyMuPDF, extract technical skill taxonomies, and rank applicants across your recruitment pipeline with deterministic 70% Skill Coverage & 30% TF-IDF Cosine Similarity.
               </p>
 
-              <div className="d-flex flex-wrap gap-3 mb-4">
+              <div className="d-flex flex-wrap gap-2.5 mb-4">
+                <a 
+                  href="#open-roles" 
+                  className="btn px-4 py-2.5 text-white fw-semibold shadow-sm d-inline-flex align-items-center gap-2 transition-all"
+                  style={{
+                    background: 'linear-gradient(135deg, #00A896 0%, #0D7B6E 100%)',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    boxShadow: '0 4px 14px rgba(0, 168, 150, 0.3)'
+                  }}
+                >
+                  <Briefcase size={17} /> Browse {filteredJobs.length > 0 ? filteredJobs.length : 5} Open Vacancies
+                </a>
                 <Link 
                   to={isAuthenticated ? "/dashboard" : "/login"} 
-                  className="btn btn-teal px-4 py-2.5 rounded-3 fs-6 d-flex align-items-center gap-2"
+                  className="btn btn-outline-secondary px-4 py-2.5 bg-white text-dark fw-semibold border shadow-xs d-inline-flex align-items-center gap-2"
+                  style={{ borderRadius: '10px', fontSize: '14px' }}
                 >
-                  {isAuthenticated ? "Open Dashboard" : "Access Recruiter Portal"} <ArrowRight size={18} />
+                  {isAuthenticated ? "Open Dashboard" : "Access Recruiter Portal"} <ArrowRight size={16} />
                 </Link>
-                <a 
-                  href="#algorithm" 
-                  className="btn btn-outline-secondary px-4 py-2.5 rounded-3 fs-6"
-                >
-                  Explore Scoring Formula
-                </a>
               </div>
 
-              {/* Highlight Badges */}
-              <div className="d-flex flex-wrap gap-3 text-secondary small pt-2">
-                <div className="d-flex align-items-center gap-1.5">
-                  <CheckCircle2 size={16} className="text-teal" /> PyMuPDF PDF Engine
+              {/* 4 Clean Metric Pillars */}
+              <div className="row g-2.5 pt-2" style={{ maxWidth: '520px' }}>
+                <div className="col-6">
+                  <div className="p-2.5 rounded-3 bg-white border shadow-xs d-flex align-items-center gap-2">
+                    <CheckCircle2 size={16} style={{ color: '#00A896' }} className="flex-shrink-0" />
+                    <span className="text-secondary small fw-medium" style={{ fontSize: '12px' }}>&lt; 0.45s PyMuPDF Engine</span>
+                  </div>
                 </div>
-                <div className="d-flex align-items-center gap-1.5">
-                  <CheckCircle2 size={16} className="text-teal" /> spaCy Skill Mining
+                <div className="col-6">
+                  <div className="p-2.5 rounded-3 bg-white border shadow-xs d-flex align-items-center gap-2">
+                    <CheckCircle2 size={16} style={{ color: '#00A896' }} className="flex-shrink-0" />
+                    <span className="text-secondary small fw-medium" style={{ fontSize: '12px' }}>70/30 Explainable Math</span>
+                  </div>
                 </div>
-                <div className="d-flex align-items-center gap-1.5">
-                  <CheckCircle2 size={16} className="text-teal" /> TF-IDF Cosine Sim
+                <div className="col-6">
+                  <div className="p-2.5 rounded-3 bg-white border shadow-xs d-flex align-items-center gap-2">
+                    <CheckCircle2 size={16} style={{ color: '#00A896' }} className="flex-shrink-0" />
+                    <span className="text-secondary small fw-medium" style={{ fontSize: '12px' }}>Zero-PII Compliance</span>
+                  </div>
                 </div>
-                <div className="d-flex align-items-center gap-1.5">
-                  <CheckCircle2 size={16} className="text-teal" /> MongoDB Atlas Cloud
+                <div className="col-6">
+                  <div className="p-2.5 rounded-3 bg-white border shadow-xs d-flex align-items-center gap-2">
+                    <CheckCircle2 size={16} style={{ color: '#00A896' }} className="flex-shrink-0" />
+                    <span className="text-secondary small fw-medium" style={{ fontSize: '12px' }}>MongoDB Atlas Cloud</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Live Interactive Preview Card */}
-            <div className="col-12 col-lg-5">
-              <div className="card border-0 shadow-lg rounded-4 p-4 glass-card position-relative overflow-hidden">
-                <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
-                  <div className="d-flex align-items-center gap-2">
-                    <span className="p-2 rounded-circle bg-success text-white" style={{ width: '10px', height: '10px' }}></span>
-                    <span className="fw-bold small text-dark">Live MongoDB Candidate Match</span>
+            {/* Right Column: High-Fidelity Executive Studio Window Visualizer */}
+            <div className="col-12 col-lg-6">
+              <div 
+                className="rounded-4 shadow-xl overflow-hidden border"
+                style={{ 
+                  backgroundColor: '#0B1528',
+                  borderColor: '#1E293B',
+                  boxShadow: '0 20px 50px rgba(11, 21, 40, 0.25)'
+                }}
+              >
+                {/* Window Top Bar (macOS Dots & Title) */}
+                <div 
+                  className="px-4 py-3 d-flex justify-content-between align-items-center border-bottom"
+                  style={{ backgroundColor: '#070F1E', borderColor: '#1E293B' }}
+                >
+                  <div className="d-flex align-items-center gap-1.5">
+                    <span className="rounded-circle" style={{ width: '10px', height: '10px', backgroundColor: '#EF4444' }}></span>
+                    <span className="rounded-circle" style={{ width: '10px', height: '10px', backgroundColor: '#F59E0B' }}></span>
+                    <span className="rounded-circle" style={{ width: '10px', height: '10px', backgroundColor: '#10B981' }}></span>
+                    <span className="text-light opacity-50 small ms-2" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
+                      TalentBridge AI Engine v2.0
+                    </span>
                   </div>
-                  <span className="badge bg-success-subtle text-success">Rank #1</span>
-                </div>
-
-                <div className="mb-3">
-                  <h5 className="fw-bold text-dark m-0">John Doe</h5>
-                  <div className="small text-muted">Senior Python Backend Engineer Applicant</div>
-                </div>
-
-                {/* Score Pill */}
-                <div className="p-3 rounded-3 bg-light border mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="small fw-semibold text-secondary">Suitability Score</span>
-                    <span className="fs-4 fw-bold text-teal">78.87%</span>
-                  </div>
-                  <div className="progress" style={{ height: '8px' }}>
-                    <div className="progress-bar bg-teal" style={{ width: '78.87%' }}></div>
-                  </div>
-                  <div className="d-flex justify-content-between small text-muted mt-2" style={{ fontSize: '11px' }}>
-                    <span>Skill Coverage: <strong>100% (70% weight)</strong></span>
-                    <span>TF-IDF Text: <strong>29.6% (30% weight)</strong></span>
+                  <div className="d-flex align-items-center gap-1.5">
+                    <span className="rounded-circle" style={{ width: '6px', height: '6px', backgroundColor: '#10B981', boxShadow: '0 0 8px #10B981' }}></span>
+                    <span className="text-light opacity-75 small" style={{ fontSize: '11px' }}>Deterministic Active</span>
                   </div>
                 </div>
 
-                {/* Extracted Evidence */}
-                <div className="mb-3">
-                  <div className="small fw-bold text-dark mb-1">Identified Required Skills:</div>
-                  <div className="d-flex flex-wrap gap-1">
-                    <span className="badge bg-success">✓ Python</span>
-                    <span className="badge bg-success">✓ FastAPI</span>
-                    <span className="badge bg-success">✓ PostgreSQL</span>
-                    <span className="badge bg-success">✓ REST API</span>
-                    <span className="badge bg-info text-dark">★ Docker</span>
+                {/* Window Body: Live Matching Leaderboard Preview */}
+                <div className="p-4 text-white">
+                  {/* Vacancy Context Banner */}
+                  <div 
+                    className="p-3 rounded-3 mb-3 d-flex justify-content-between align-items-center border"
+                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)' }}
+                  >
+                    <div>
+                      <div className="text-light opacity-60 text-uppercase fw-semibold" style={{ fontSize: '10px', letterSpacing: '0.8px' }}>
+                        Active Vacancy In Focus
+                      </div>
+                      <div className="fw-bold text-white small" style={{ fontSize: '13.5px' }}>
+                        Senior Python & AI Backend Engineer
+                      </div>
+                    </div>
+                    <span 
+                      className="badge rounded-pill border px-2.5 py-1"
+                      style={{ backgroundColor: 'rgba(0, 168, 150, 0.15)', borderColor: 'rgba(0, 210, 180, 0.3)', color: '#2DD4BF', fontSize: '11px' }}
+                    >
+                      5 Applicants Scored
+                    </span>
                   </div>
-                </div>
 
-                <div className="small bg-teal-subtle text-teal p-2.5 rounded-2" style={{ fontSize: '12px', backgroundColor: '#CCFBF1', color: '#0F766E' }}>
-                  <strong>Evidence Snippet:</strong> "...Senior Python Backend Engineer with expertise in FastAPI microservices and PostgreSQL database architecture..."
+                  {/* Top 3 Live Scored Candidates Leaderboard */}
+                  <div className="d-flex flex-column gap-2.5 mb-3">
+                    {/* Rank 1: Gokul Nath */}
+                    <div 
+                      className="p-2.5 rounded-3 border d-flex align-items-center justify-content-between transition-all"
+                      style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }}
+                    >
+                      <div className="d-flex align-items-center gap-2.5 overflow-hidden me-2">
+                        <div 
+                          className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs flex-shrink-0"
+                          style={{ width: '32px', height: '32px', backgroundColor: '#FEF08A', color: '#854D0E', border: '1.5px solid #FACC15', fontSize: '13px' }}
+                        >
+                          🥇
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="fw-bold text-white small text-truncate leading-tight mb-1">
+                            Gokul Nath
+                          </div>
+                          <div className="d-flex flex-wrap gap-1">
+                            {['Python', 'FastAPI', 'PostgreSQL'].map(s => (
+                              <span key={s} className="badge rounded-pill" style={{ backgroundColor: 'rgba(0, 210, 180, 0.2)', color: '#2DD4BF', fontSize: '9.5px', padding: '2px 6px' }}>
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="d-flex align-items-center gap-2.5 flex-shrink-0">
+                        <div className="progress d-none d-sm-block" style={{ width: '65px', height: '6px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '6px' }}>
+                          <div className="progress-bar rounded-pill" style={{ width: '82.8%', backgroundColor: '#10B981' }}></div>
+                        </div>
+                        <span 
+                          className="badge rounded-pill fw-bold"
+                          style={{ backgroundColor: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', fontSize: '11.5px', padding: '4px 8px' }}
+                        >
+                          82.8%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Rank 2: Rajesh Kumar */}
+                    <div 
+                      className="p-2.5 rounded-3 border d-flex align-items-center justify-content-between transition-all"
+                      style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderColor: 'rgba(255, 255, 255, 0.08)' }}
+                    >
+                      <div className="d-flex align-items-center gap-2.5 overflow-hidden me-2">
+                        <div 
+                          className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs flex-shrink-0"
+                          style={{ width: '32px', height: '32px', backgroundColor: '#F1F5F9', color: '#334155', border: '1.5px solid #CBD5E1', fontSize: '13px' }}
+                        >
+                          🥈
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="fw-bold text-white small text-truncate leading-tight mb-1">
+                            Rajesh Kumar
+                          </div>
+                          <div className="d-flex flex-wrap gap-1">
+                            {['Docker', 'AWS', 'Linux'].map(s => (
+                              <span key={s} className="badge rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#CBD5E1', fontSize: '9.5px', padding: '2px 6px' }}>
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="d-flex align-items-center gap-2.5 flex-shrink-0">
+                        <div className="progress d-none d-sm-block" style={{ width: '65px', height: '6px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '6px' }}>
+                          <div className="progress-bar rounded-pill" style={{ width: '51.2%', backgroundColor: '#0D9488' }}></div>
+                        </div>
+                        <span 
+                          className="badge rounded-pill fw-bold"
+                          style={{ backgroundColor: '#F0FDFA', color: '#0D9488', border: '1px solid #99F6E4', fontSize: '11.5px', padding: '4px 8px' }}
+                        >
+                          51.2%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Rank 3: Priya Sharma */}
+                    <div 
+                      className="p-2.5 rounded-3 border d-flex align-items-center justify-content-between transition-all"
+                      style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderColor: 'rgba(255, 255, 255, 0.08)' }}
+                    >
+                      <div className="d-flex align-items-center gap-2.5 overflow-hidden me-2">
+                        <div 
+                          className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs flex-shrink-0"
+                          style={{ width: '32px', height: '32px', backgroundColor: '#FFEDD5', color: '#9A3412', border: '1.5px solid #FDBA74', fontSize: '13px' }}
+                        >
+                          🥉
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="fw-bold text-white small text-truncate leading-tight mb-1">
+                            Priya Sharma
+                          </div>
+                          <div className="d-flex flex-wrap gap-1">
+                            {['React', 'TypeScript', 'FastAPI'].map(s => (
+                              <span key={s} className="badge rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#CBD5E1', fontSize: '9.5px', padding: '2px 6px' }}>
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="d-flex align-items-center gap-2.5 flex-shrink-0">
+                        <div className="progress d-none d-sm-block" style={{ width: '65px', height: '6px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '6px' }}>
+                          <div className="progress-bar rounded-pill" style={{ width: '49.7%', backgroundColor: '#F59E0B' }}></div>
+                        </div>
+                        <span 
+                          className="badge rounded-pill fw-bold"
+                          style={{ backgroundColor: '#FFFBEB', color: '#D97706', border: '1px solid #FDE68A', fontSize: '11.5px', padding: '4px 8px' }}
+                        >
+                          49.7%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Window Footer Formula */}
+                  <div 
+                    className="p-2.5 rounded-2 text-center small text-light opacity-80"
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.06)', fontSize: '11px' }}
+                  >
+                    <span style={{ color: '#2DD4BF' }}>Formula:</span> (0.70 &times; Skill Coverage) + (0.30 &times; TF-IDF Cosine Sim)
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* PUBLIC CAREER BOARD / OPEN POSITIONS SECTION */}
+      <section id="open-roles" className="py-5 bg-light border-bottom">
+        <div className="container py-4">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+            <div>
+              <div className="d-inline-flex align-items-center gap-1.5 px-3 py-1 rounded-pill mb-2" style={{ backgroundColor: '#DCFCE7', color: '#15803D', fontSize: '12px', fontWeight: 600 }}>
+                <Briefcase size={14} /> Open Vacancies
+              </div>
+              <h2 className="fw-bolder text-dark m-0" style={{ letterSpacing: '-0.5px' }}>
+                Explore Open Career Opportunities
+              </h2>
+              <p className="text-muted small m-0 mt-1">
+                Browse positions posted by recruiters. Apply with instant Gmail OTP verification and AI resume screening.
+              </p>
+            </div>
+
+            {/* Search Box */}
+            <div className="d-flex gap-2" style={{ minWidth: '280px' }}>
+              <div className="input-group input-group-sm">
+                <span className="input-group-text bg-white border-end-0 text-muted"><Search size={14} /></span>
+                <input
+                  type="text"
+                  className="form-control border-start-0"
+                  placeholder="Search by role, skill, or city..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Department Filter Pills */}
+          {uniqueDepartments.length > 0 && (
+            <div className="d-flex flex-wrap gap-1.5 mb-4">
+              <button
+                onClick={() => setSelectedDept('ALL')}
+                className={`btn btn-sm rounded-pill px-3 py-1 ${selectedDept === 'ALL' ? 'btn-teal text-white' : 'btn-white border text-secondary'}`}
+                style={{ fontSize: '12px' }}
+              >
+                All Departments ({jobs.filter((j) => j.status === 'PUBLISHED' || j.status === 'OPEN').length})
+              </button>
+              {uniqueDepartments.map((dept) => (
+                <button
+                  key={dept}
+                  onClick={() => setSelectedDept(dept)}
+                  className={`btn btn-sm rounded-pill px-3 py-1 ${selectedDept === dept ? 'btn-teal text-white' : 'btn-white border text-secondary'}`}
+                  style={{ fontSize: '12px' }}
+                >
+                  {dept}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Jobs Listing Grid */}
+          {loadingJobs ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-teal" role="status"></div>
+            </div>
+          ) : filteredJobs.length === 0 ? (
+            <div className="card border-0 shadow-sm p-5 text-center text-muted rounded-4 bg-white">
+              <Briefcase size={48} className="mx-auto mb-3 opacity-40 text-secondary" />
+              <h5>No Matching Openings Found</h5>
+              <p className="small">Try clearing search filters or check back later for new career postings.</p>
+            </div>
+          ) : (
+            <div className="row g-4">
+              {filteredJobs.map((job) => (
+                <div className="col-12 col-md-6 col-xl-4" key={job.id}>
+                  <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 d-flex flex-column justify-content-between card-hover position-relative">
+                    <div>
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+                          {job.department}
+                        </span>
+                        <span className="badge-status-open d-inline-flex align-items-center gap-1">
+                          <span className="rounded-circle bg-success" style={{ width: '6px', height: '6px' }}></span>
+                          Open
+                        </span>
+                      </div>
+
+                      <h5 className="fw-bold text-dark mb-2">{job.title}</h5>
+
+                      <div className="d-flex align-items-center gap-3 text-muted small mb-3">
+                        <span className="d-flex align-items-center gap-1"><MapPin size={14} /> {job.location}</span>
+                        <span className="d-flex align-items-center gap-1"><Clock size={14} /> {job.experience_min}-{job.experience_max} yrs</span>
+                      </div>
+
+                      <p className="text-secondary small mb-3 text-truncate-2" style={{ maxHeight: '42px', overflow: 'hidden' }}>
+                        {job.description}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="border-top pt-3 mb-3">
+                        <div className="small fw-semibold text-muted mb-2">Required Skills (70% Weight):</div>
+                        <div className="d-flex flex-wrap gap-1">
+                          {job.skills?.filter((s: any) => s.requirement_type === 'REQUIRED').map((s: any) => (
+                            <span key={s.id || s.skill_name} className="badge bg-light text-dark border">
+                              {s.skill_name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleOpenApply(job)}
+                        className="btn btn-teal w-100 d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 fw-semibold shadow-sm"
+                      >
+                        <Send size={15} /> Apply Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -222,92 +588,50 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Features Grid */}
+      {/* Features Showcase */}
       <section id="features" className="py-5 bg-light border-bottom">
         <div className="container py-4">
-          <div className="text-center mb-5" style={{ maxWidth: '650px', margin: '0 auto' }}>
-            <span className="badge bg-primary-subtle text-primary px-3 py-1.5 mb-2">Platform Capabilities</span>
-            <h2 className="fw-bold text-dark">Comprehensive Recruiter Features</h2>
+          <div className="text-center max-w-700 mx-auto mb-5" style={{ maxWidth: '650px' }}>
+            <span className="badge badge-teal text-uppercase px-3 py-1.5 mb-2">Core Capabilities</span>
+            <h2 className="fw-bold text-dark">Engineered for Technical Recruitment</h2>
             <p className="text-secondary small">
-              End-to-end recruitment management from vacancy publishing to final candidate shortlisting and compliance auditing.
+              From raw unstructured PDF ingestion to explainable leaderboards and audit-ready governance.
             </p>
           </div>
 
           <div className="row g-4">
-            {/* Feature 1 */}
-            <div className="col-12 col-md-6 col-lg-4">
+            <div className="col-12 col-md-4">
               <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 card-hover">
-                <div className="p-3 rounded-3 bg-teal-subtle text-teal d-inline-flex mb-3" style={{ width: 'fit-content', backgroundColor: '#CCFBF1', color: '#0F766E' }}>
+                <div className="p-3 rounded-3 bg-light text-teal d-inline-block mb-3" style={{ width: 'fit-content' }}>
                   <FileSearch size={24} />
                 </div>
-                <h5 className="fw-bold text-dark mb-2">PyMuPDF Text Extractor</h5>
-                <p className="small text-secondary m-0">
-                  Page-by-page PDF extraction preserving critical technical symbols (C++, C#, .NET, Node.js) with quality threshold checks for scanned or unreadable files.
+                <h5 className="fw-bold text-dark mb-2">PyMuPDF Document Parser</h5>
+                <p className="text-secondary small mb-0">
+                  Reliable extraction of multi-column, formatted PDF resumes with fallback boundary cleansing for C++, C#, .NET, and modern tech terms.
                 </p>
               </div>
             </div>
 
-            {/* Feature 2 */}
-            <div className="col-12 col-md-6 col-lg-4">
+            <div className="col-12 col-md-4">
               <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 card-hover">
-                <div className="p-3 rounded-3 bg-primary-subtle text-primary d-inline-flex mb-3" style={{ width: 'fit-content' }}>
-                  <Sparkles size={24} />
+                <div className="p-3 rounded-3 bg-light text-teal d-inline-block mb-3" style={{ width: 'fit-content' }}>
+                  <Layers size={24} />
                 </div>
-                <h5 className="fw-bold text-dark mb-2">spaCy NLP Skill Miner</h5>
-                <p className="small text-secondary m-0">
-                  Curated technical skill dictionary mapping synonyms (e.g. Postgres, PSQL $\rightarrow$ PostgreSQL) with extracted ~60 character evidence context snippets.
+                <h5 className="fw-bold text-dark mb-2">Curated Skill Taxonomy</h5>
+                <p className="text-secondary small mb-0">
+                  Taxonomy matching supporting multi-word phrases and alias variations with exact word boundary verification and context sentence extraction.
                 </p>
               </div>
             </div>
 
-            {/* Feature 3 */}
-            <div className="col-12 col-md-6 col-lg-4">
+            <div className="col-12 col-md-4">
               <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 card-hover">
-                <div className="p-3 rounded-3 bg-warning-subtle text-warning d-inline-flex mb-3" style={{ width: 'fit-content' }}>
-                  <Award size={24} />
-                </div>
-                <h5 className="fw-bold text-dark mb-2">Ranking Leaderboard</h5>
-                <p className="small text-secondary m-0">
-                  Deterministic tie-breaking candidate review board with color-coded score badges, matched vs missing required skills, and click-to-explain modals.
-                </p>
-              </div>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="col-12 col-md-6 col-lg-4">
-              <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 card-hover">
-                <div className="p-3 rounded-3 bg-info-subtle text-info d-inline-flex mb-3" style={{ width: 'fit-content' }}>
-                  <GitBranch size={24} />
-                </div>
-                <h5 className="fw-bold text-dark mb-2">Recruitment Pipeline</h5>
-                <p className="small text-secondary m-0">
-                  Interactive stage board supporting 8 candidate progression stages, 1-5 star recruiter qualitative rating, and interview observation logs.
-                </p>
-              </div>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="col-12 col-md-6 col-lg-4">
-              <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 card-hover">
-                <div className="p-3 rounded-3 bg-success-subtle text-success d-inline-flex mb-3" style={{ width: 'fit-content' }}>
-                  <Database size={24} />
-                </div>
-                <h5 className="fw-bold text-dark mb-2">MongoDB Atlas Cloud</h5>
-                <p className="small text-secondary m-0">
-                  Direct connection to MongoDB Atlas Cluster0 with collections for users, candidates, resumes, applications, and tamper-evident audit logs.
-                </p>
-              </div>
-            </div>
-
-            {/* Feature 6 */}
-            <div className="col-12 col-md-6 col-lg-4">
-              <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 card-hover">
-                <div className="p-3 rounded-3 bg-danger-subtle text-danger d-inline-flex mb-3" style={{ width: 'fit-content' }}>
+                <div className="p-3 rounded-3 bg-light text-teal d-inline-block mb-3" style={{ width: 'fit-content' }}>
                   <ShieldCheck size={24} />
                 </div>
-                <h5 className="fw-bold text-dark mb-2">Responsible AI & Privacy</h5>
-                <p className="small text-secondary m-0">
-                  Protected characteristics (age, gender, photo, background) are strictly excluded from mathematical ranking. No autonomous rejections.
+                <h5 className="fw-bold text-dark mb-2">Blind AI Scoring</h5>
+                <p className="text-secondary small mb-0">
+                  Algorithms strictly evaluate verified technical competency and experience text, completely detached from demographic or PII variables.
                 </p>
               </div>
             </div>
@@ -315,47 +639,31 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Tech Stack Banner */}
-      <section id="architecture" className="py-5 bg-white border-bottom">
-        <div className="container py-3">
-          <div className="text-center mb-4">
-            <h4 className="fw-bold text-dark m-0">Full-Stack Technology Architecture</h4>
-            <p className="text-muted small">Standard open-source modern stack designed for reliability and scalability</p>
-          </div>
-          <div className="d-flex flex-wrap justify-content-center align-items-center gap-3">
-            {[
-              "React 18", "TypeScript", "Vite", "Bootstrap 5", "Recharts", "Lucide",
-              "Python 3.12", "FastAPI", "MongoDB Atlas", "PyMuPDF", "spaCy", "Scikit-Learn", "Bcrypt", "JWT"
-            ].map((tech) => (
-              <span key={tech} className="badge bg-light text-dark border px-3 py-2 fs-6 fw-normal">
-                {tech}
-              </span>
-            ))}
+      {/* Footer */}
+      <footer className="bg-dark text-white py-4 mt-auto">
+        <div className="container">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <div className="d-flex align-items-center gap-2">
+              <Award size={18} className="text-teal" />
+              <span className="fw-bold">TalentBridge</span>
+              <span className="text-secondary small ms-2">Explainable AI Candidate Screening & Ranking</span>
+            </div>
+            <div className="text-secondary small">
+              Connected to MongoDB Atlas Cluster0 • TalentBridge Database
+            </div>
           </div>
         </div>
-      </section>
+      </footer>
 
-      {/* CTA Footer */}
-      <section className="bg-gradient-dark-hero text-white py-5 text-center mt-auto">
-        <div className="container py-4">
-          <h2 className="fw-bold mb-3">Ready to Experience TalentBridge?</h2>
-          <p className="text-secondary max-w-600 mx-auto mb-4" style={{ maxWidth: '540px' }}>
-            Sign in as an Administrator, Recruiter, or HR Manager to view live candidate scorings and pipeline workflows.
-          </p>
-          <div className="d-flex justify-content-center gap-3">
-            <Link 
-              to="/login" 
-              className="btn btn-teal px-4 py-2.5 rounded-pill fs-6 d-flex align-items-center gap-2"
-            >
-              Sign In to Recruiter Portal <ArrowRight size={18} />
-            </Link>
-          </div>
-          <div className="mt-4 pt-3 border-top border-secondary small text-muted">
-            TalentBridge – Academic Project Implementation & Viva Demonstration Baseline © 2026
-          </div>
-        </div>
-      </section>
+      {/* Multi-Step Candidate Apply Modal with Live Gmail OTP */}
+      <ApplyModal
+        job={selectedJob}
+        isOpen={isApplyModalOpen}
+        onClose={() => setIsApplyModalOpen(false)}
+        onSuccess={() => {
+          // Refresh jobs or notify
+        }}
+      />
     </div>
   );
 };
-

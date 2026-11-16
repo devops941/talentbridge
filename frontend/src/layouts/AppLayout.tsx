@@ -15,7 +15,8 @@ import {
   LogOut, 
   Cpu, 
   CheckCircle2,
-  Home as HomeIcon
+  Home as HomeIcon,
+  User
 } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
@@ -117,39 +118,98 @@ export const AppLayout: React.FC = () => {
           })}
         </nav>
 
-        {/* Bottom AI-Powered Screening Card Widget */}
-        <div 
-          className="mt-auto p-3 rounded-4 position-relative overflow-hidden"
-          style={{
-            background: 'linear-gradient(145deg, #0E2B38 0%, #091D26 100%)',
-            border: '1px solid rgba(0, 210, 180, 0.22)',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
-          }}
-        >
-          <div className="d-flex align-items-center gap-2 mb-2">
-            <div 
-              className="rounded-2 p-1.5 d-flex align-items-center justify-content-center"
-              style={{ backgroundColor: 'rgba(0, 210, 180, 0.2)', color: '#00D2B4' }}
-            >
-              <Cpu size={16} />
+        {/* Bottom Section: AI Candidate Screening Card + User Profile with Logout */}
+        <div className="mt-auto pt-3 d-flex flex-column gap-2">
+          {/* Bottom AI-Powered Screening Card Widget */}
+          <div 
+            className="p-3 rounded-4 position-relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(145deg, #0E2B38 0%, #091D26 100%)',
+              border: '1px solid rgba(0, 210, 180, 0.22)',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div className="d-flex align-items-center gap-2 mb-2">
+              <div 
+                className="rounded-2 p-1.5 d-flex align-items-center justify-content-center"
+                style={{ backgroundColor: 'rgba(0, 210, 180, 0.2)', color: '#00D2B4' }}
+              >
+                <Cpu size={15} />
+              </div>
+              <div className="text-white fw-bold" style={{ fontSize: '11.5px' }}>
+                AI Candidate Screening
+              </div>
             </div>
-            <div className="text-white fw-bold" style={{ fontSize: '11.5px' }}>
-              AI Candidate Screening
+            <div className="d-flex flex-column gap-1 text-light" style={{ fontSize: '10.5px', opacity: 0.9 }}>
+              <div className="d-flex align-items-center gap-1.5">
+                <CheckCircle2 size={12} color="#00D2B4" />
+                <span>PyMuPDF Text Parsing</span>
+              </div>
+              <div className="d-flex align-items-center gap-1.5">
+                <CheckCircle2 size={12} color="#00D2B4" />
+                <span>70% Skill Coverage NLP</span>
+              </div>
+              <div className="d-flex align-items-center gap-1.5">
+                <CheckCircle2 size={12} color="#00D2B4" />
+                <span>30% TF-IDF Cosine Match</span>
+              </div>
             </div>
           </div>
-          <div className="d-flex flex-column gap-1 text-light" style={{ fontSize: '11px', opacity: 0.9 }}>
-            <div className="d-flex align-items-center gap-1.5">
-              <CheckCircle2 size={12} color="#00D2B4" />
-              <span>PyMuPDF Text Parsing</span>
+
+          {/* User Profile & Logout Footer */}
+          <div 
+            className="p-2.5 rounded-4 d-flex flex-column gap-2"
+            style={{
+              backgroundColor: '#111E33',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+            }}
+          >
+            <div className="d-flex align-items-center justify-content-between">
+              <div className="d-flex align-items-center gap-2 overflow-hidden">
+                <div 
+                  className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    background: 'linear-gradient(135deg, #00A896 0%, #028090 100%)',
+                    fontSize: '13px'
+                  }}
+                >
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+                </div>
+                <div className="overflow-hidden text-start">
+                  <div className="text-white fw-semibold text-truncate" style={{ fontSize: '12px' }}>
+                    {user?.name || 'Administrator'}
+                  </div>
+                  <div className="text-truncate" style={{ fontSize: '10.5px', color: '#94A3B8' }}>
+                    {user?.email || 'admin@talentbridge.io'}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="d-flex align-items-center gap-1.5">
-              <CheckCircle2 size={12} color="#00D2B4" />
-              <span>70% Skill Coverage NLP</span>
-            </div>
-            <div className="d-flex align-items-center gap-1.5">
-              <CheckCircle2 size={12} color="#00D2B4" />
-              <span>30% TF-IDF Cosine Match</span>
-            </div>
+
+            <button
+              onClick={handleLogout}
+              className="btn btn-sm d-flex align-items-center justify-content-center gap-2 w-100 rounded-3 py-1.5 fw-semibold transition-all"
+              style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.14)',
+                color: '#F87171',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#EF4444';
+                e.currentTarget.style.color = '#FFFFFF';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.14)';
+                e.currentTarget.style.color = '#F87171';
+              }}
+            >
+              <LogOut size={14} />
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -180,34 +240,31 @@ export const AppLayout: React.FC = () => {
               />
             </div>
 
-            {/* Notification Bell */}
-            <div className="position-relative cursor-pointer p-2 rounded-circle hover-bg-light" style={{ cursor: 'pointer' }}>
-              <Bell size={20} className="text-secondary" />
-              <span 
-                className="position-absolute top-1 end-1 rounded-circle bg-danger"
-                style={{ width: '8px', height: '8px', border: '2px solid #FFFFFF' }}
-              ></span>
-            </div>
-
             {/* User Profile Avatar with dropdown */}
             <div className="position-relative">
               <div 
-                className="d-flex align-items-center gap-2 p-1 rounded-3 cursor-pointer"
+                className="d-flex align-items-center gap-2.5 p-1 rounded-3 cursor-pointer"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80"
-                  alt="Admin Profile"
-                  className="rounded-circle object-fit-cover shadow-sm"
-                  style={{ width: '36px', height: '36px', border: '1.5px solid #00A896' }}
-                />
+                <div 
+                  className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs flex-shrink-0"
+                  style={{ 
+                    width: '36px', 
+                    height: '36px', 
+                    backgroundColor: '#0B1528', 
+                    border: '1.5px solid #00A896',
+                    color: '#00D2B4'
+                  }}
+                >
+                  <User size={18} />
+                </div>
                 <div className="d-none d-sm-block text-start">
                   <div className="fw-bold text-dark small m-0 leading-tight">
-                    {user?.name || 'Admin'}
+                    {user?.name || 'System Administrator'}
                   </div>
-                  <div className="text-muted" style={{ fontSize: '10.5px' }}>
-                    {user?.role || 'HR Recruiter'}
+                  <div className="fw-semibold" style={{ fontSize: '10.5px', color: '#00A896' }}>
+                    {user?.role ? user.role.toUpperCase() : 'ADMIN'}
                   </div>
                 </div>
                 <ChevronDown size={14} className="text-muted" />

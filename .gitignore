@@ -10,3 +10,11 @@ backend/private_uploads/resumes/*
 !backend/private_uploads/resumes/.gitkeep
 .vscode/
 .idea/
+commands
+
+# Environment Secrets
+.env
+*.env
+!.env.example
+!backend/.env.example
+!frontend/.env.example

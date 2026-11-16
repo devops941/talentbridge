@@ -18,7 +18,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && window.location.pathname !== '/login') {
+    // Only redirect to login for recruiter portal routes if 401, not for public home or candidate actions
+    if (error.response?.status === 401 && !window.location.pathname.startsWith('/login') && window.location.pathname !== '/') {
       localStorage.removeItem('tb_token');
       localStorage.removeItem('tb_user');
       window.location.href = '/login';
@@ -28,4 +29,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

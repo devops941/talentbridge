@@ -11,6 +11,7 @@ from app.routes.applications import router as applications_router
 from app.routes.pipeline import router as pipeline_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.reports import router as reports_router
+from app.routes.candidate_auth import router as candidate_auth_router
 
 # Ensure local private upload storage directory exists
 os.makedirs(settings.UPLOAD_STORAGE_PATH, exist_ok=True)
@@ -42,6 +43,7 @@ app.include_router(applications_router)
 app.include_router(pipeline_router)
 app.include_router(dashboard_router)
 app.include_router(reports_router)
+app.include_router(candidate_auth_router)
 
 @app.get("/health", tags=["Health"])
 @app.get("/api/v1/health", tags=["Health"])

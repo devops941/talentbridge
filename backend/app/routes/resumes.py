@@ -2,6 +2,7 @@ import os
 import hashlib
 import uuid
 from datetime import datetime
+from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from fastapi.responses import FileResponse
 from app.core.config import settings
@@ -12,6 +13,37 @@ from app.ml.parser import extract_text_from_pdf
 from app.ml.skill_extractor import extract_skills_from_text
 
 router = APIRouter(prefix="/api/v1/resumes", tags=["Resumes"])
+
+@router.get("", response_model=List[ResumeResponse])
+def list_resumes(
+    candidate_id: Optional[str] = None,
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    query = {}
+    if candidate_id:
+        query["candidate_id"] = candidate_id
+    cursor = db.resumes.find(query).sort("created_at", -1)
+
+    results = []
+    for r in cursor:
+        created_at = r.get("created_at") or r.get("uploaded_at")
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+        elif not isinstance(created_at, datetime):
+            created_at = datetime.utcnow()
+
+        results.append(ResumeResponse(
+            id=str(r.get("id")),
+            candidate_id=r.get("candidate_id", ""),
+            original_filename=r.get("original_filename") or r.get("file_name", "Resume.pdf"),
+            mime_type=r.get("mime_type", "application/pdf"),
+            file_size=r.get("file_size", 0),
+            checksum=r.get("checksum", ""),
+            parse_status=r.get("parse_status", "COMPLETED"),
+            created_at=created_at
+        ))
+    return results
 
 @router.post("/upload", response_model=ResumeResponse)
 async def upload_resume(
@@ -136,6 +168,8 @@ def get_resume_details(
         candidate_id=resume.get("candidate_id"),
         candidate_name=cand_name,
         original_filename=resume.get("original_filename"),
+        file_size=resume.get("file_size", 0),
+        checksum=resume.get("checksum", ""),
         parse_status=resume.get("parse_status"),
         extracted_text=resume.get("extracted_text"),
         skills=skills_list,

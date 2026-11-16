@@ -24,6 +24,8 @@ class ResumeDetailResponse(BaseModel):
     candidate_name: str
     original_filename: str
     parse_status: str
+    file_size: Optional[int] = 0
+    checksum: Optional[str] = None
     extracted_text: Optional[str] = None
     skills: List[ResumeSkillItem] = []
     created_at: datetime
