@@ -74,6 +74,36 @@ export const Jobs: React.FC = () => {
   // Inline Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Lifecycle filter & action state
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const handleToggleStatus = async (jobId: string, currentStatus: string) => {
+    const isCurrentlyOpen = currentStatus === 'PUBLISHED' || currentStatus === 'OPEN';
+    const newStatus = isCurrentlyOpen ? 'CLOSED' : 'OPEN';
+    setTogglingId(jobId);
+    try {
+      await api.patch(`/jobs/${jobId}/status?status=${newStatus}`);
+      setJobs((prev) =>
+        prev.map((j) => (j.id === jobId ? { ...j, status: newStatus === 'OPEN' ? 'PUBLISHED' : 'CLOSED' } : j))
+      );
+    } catch (err) {
+      console.error('Failed to toggle job status:', err);
+      alert('Failed to update vacancy status. Please try again.');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const openCount = jobs.filter((j) => j.status === 'PUBLISHED' || j.status === 'OPEN').length;
+  const closedCount = jobs.filter((j) => j.status === 'CLOSED').length;
+
+  const filteredJobs = jobs.filter((j) => {
+    if (filterStatus === 'OPEN') return j.status === 'PUBLISHED' || j.status === 'OPEN';
+    if (filterStatus === 'CLOSED') return j.status === 'CLOSED';
+    return true;
+  });
+
   const fetchJobs = () => {
     setLoading(true);
     api.get('/jobs')
@@ -250,10 +280,10 @@ export const Jobs: React.FC = () => {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <h3 className="fw-bold text-dark m-0">Job Vacancies</h3>
-          <p className="text-muted small">Manage hiring criteria and configure explainable AI skill requirements</p>
+          <p className="text-muted small m-0">Manage hiring criteria and configure explainable AI skill requirements</p>
         </div>
         <button 
           onClick={handleOpenModal} 
@@ -264,56 +294,149 @@ export const Jobs: React.FC = () => {
         </button>
       </div>
 
+      {/* Status Counters & Lifecycle Filter Bar */}
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 p-3 bg-white rounded-3 border shadow-sm">
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <span className="text-secondary small fw-bold me-1">Lifecycle Status:</span>
+          <button
+            onClick={() => setFilterStatus('ALL')}
+            className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold transition-all ${
+              filterStatus === 'ALL' ? 'btn-dark text-white' : 'btn-light text-secondary border'
+            }`}
+            style={{ fontSize: '12px' }}
+          >
+            All Vacancies ({jobs.length})
+          </button>
+          <button
+            onClick={() => setFilterStatus('OPEN')}
+            className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+              filterStatus === 'OPEN' ? 'btn-success text-white' : 'btn-light text-success border border-success-subtle'
+            }`}
+            style={{ fontSize: '12px' }}
+          >
+            <span className="rounded-circle bg-success" style={{ width: '6px', height: '6px' }}></span>
+            Open ({openCount})
+          </button>
+          <button
+            onClick={() => setFilterStatus('CLOSED')}
+            className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+              filterStatus === 'CLOSED' ? 'btn-secondary text-white' : 'btn-light text-muted border'
+            }`}
+            style={{ fontSize: '12px' }}
+          >
+            <span className="rounded-circle bg-secondary" style={{ width: '6px', height: '6px' }}></span>
+            Closed ({closedCount})
+          </button>
+        </div>
+
+        <div className="text-muted small">
+          Showing <strong>{filteredJobs.length}</strong> of <strong>{jobs.length}</strong> total positions
+        </div>
+      </div>
+
       {loading ? (
         <div className="text-center py-5">
           <div className="spinner-border text-teal" role="status"></div>
         </div>
-      ) : jobs.length === 0 ? (
+      ) : filteredJobs.length === 0 ? (
         <div className="card border-0 shadow-sm p-5 text-center text-muted">
           <Briefcase size={48} className="mx-auto mb-3 opacity-50" />
-          <h5>No Job Openings Created Yet</h5>
-          <p className="small">Click "Post New Vacancy" to configure your first opening and skill criteria.</p>
+          <h5>No {filterStatus !== 'ALL' ? filterStatus.toLowerCase() : ''} Job Openings Found</h5>
+          <p className="small">
+            {filterStatus !== 'ALL' 
+              ? `There are currently no job postings with ${filterStatus.toLowerCase()} status.`
+              : 'Click "Post New Vacancy" to configure your first opening and skill criteria.'}
+          </p>
         </div>
       ) : (
         <div className="row g-3">
-          {jobs.map((job) => (
-            <div className="col-12 col-md-6 col-xl-4" key={job.id}>
-              <div className="card border-0 shadow-sm rounded-3 p-4 bg-white h-100 d-flex flex-column justify-content-between">
-                <div>
-                  <div className="d-flex justify-content-between align-items-start mb-2">
-                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
-                      {job.department}
-                    </span>
-                    <span className="badge bg-success-subtle text-success">
-                      {job.status}
-                    </span>
-                  </div>
-                  <h5 className="fw-bold text-dark mb-2">{job.title}</h5>
-                  <div className="d-flex align-items-center gap-3 text-muted small mb-3">
-                    <span className="d-flex align-items-center gap-1"><MapPin size={14} /> {job.location}</span>
-                    <span className="d-flex align-items-center gap-1"><Clock size={14} /> {job.experience_min}-{job.experience_max} yrs</span>
-                  </div>
-                  <p className="text-secondary small mb-3 text-truncate-2" style={{ maxHeight: '42px', overflow: 'hidden' }}>
-                    {job.description}
-                  </p>
-                </div>
-
-                <div className="border-top pt-3">
-                  <div className="small fw-semibold text-muted mb-2">Required Skills (70% Weight):</div>
-                  <div className="d-flex flex-wrap gap-1">
-                    {job.skills.filter((s: any) => s.requirement_type === 'REQUIRED').map((s: any) => (
-                      <span key={s.id || s.skill_name} className="badge bg-light text-dark border">
-                        {s.skill_name}
+          {filteredJobs.map((job) => {
+            const isOpen = job.status === 'PUBLISHED' || job.status === 'OPEN';
+            return (
+              <div className="col-12 col-md-6 col-xl-4" key={job.id}>
+                <div 
+                  className={`card border-0 shadow-sm rounded-3 p-4 bg-white h-100 d-flex flex-column justify-content-between position-relative ${
+                    !isOpen ? 'opacity-85' : ''
+                  }`}
+                  style={{ borderLeft: isOpen ? '4px solid #10B981' : '4px solid #94A3B8' }}
+                >
+                  <div>
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                      <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+                        {job.department}
                       </span>
-                    ))}
-                    {job.skills.filter((s: any) => s.requirement_type === 'REQUIRED').length === 0 && (
-                      <span className="text-muted small">None specified</span>
-                    )}
+                      {isOpen ? (
+                        <span className="badge-status-open d-inline-flex align-items-center gap-1">
+                          <span className="rounded-circle bg-success" style={{ width: '6px', height: '6px' }}></span>
+                          Open
+                        </span>
+                      ) : (
+                        <span className="badge bg-secondary-subtle text-secondary border d-inline-flex align-items-center gap-1">
+                          <span className="rounded-circle bg-secondary" style={{ width: '6px', height: '6px' }}></span>
+                          Closed
+                        </span>
+                      )}
+                    </div>
+                    <h5 className="fw-bold text-dark mb-2">{job.title}</h5>
+                    <div className="d-flex align-items-center gap-3 text-muted small mb-3">
+                      <span className="d-flex align-items-center gap-1"><MapPin size={14} /> {job.location}</span>
+                      <span className="d-flex align-items-center gap-1"><Clock size={14} /> {job.experience_min}-{job.experience_max} yrs</span>
+                    </div>
+                    <p className="text-secondary small mb-3 text-truncate-2" style={{ maxHeight: '42px', overflow: 'hidden' }}>
+                      {job.description}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="border-top pt-2.5 mb-3">
+                      <div className="small fw-semibold text-muted mb-1.5" style={{ fontSize: '11.5px' }}>
+                        Required Skills (70% Weight):
+                      </div>
+                      <div className="d-flex flex-wrap gap-1">
+                        {job.skills.filter((s: any) => s.requirement_type === 'REQUIRED').map((s: any) => (
+                          <span key={s.id || s.skill_name} className="badge bg-light text-dark border" style={{ fontSize: '11px' }}>
+                            {s.skill_name}
+                          </span>
+                        ))}
+                        {job.skills.filter((s: any) => s.requirement_type === 'REQUIRED').length === 0 && (
+                          <span className="text-muted small">None specified</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 1-Click Status Toggle Action */}
+                    <div className="border-top pt-2.5 d-flex justify-content-between align-items-center">
+                      <span className="text-muted" style={{ fontSize: '11px' }}>
+                        {isOpen ? '🟢 Accepting Applicants' : '⚫ Application Closed'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(job.id, job.status)}
+                        disabled={togglingId === job.id}
+                        className={`btn btn-sm d-inline-flex align-items-center gap-1.5 py-1 px-2.5 rounded-2 ${
+                          isOpen 
+                            ? 'btn-outline-danger' 
+                            : 'btn-success text-white'
+                        }`}
+                        style={{ fontSize: '11.5px', fontWeight: 600 }}
+                      >
+                        {togglingId === job.id ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm" role="status" style={{ width: '10px', height: '10px' }}></span>
+                            Updating...
+                          </>
+                        ) : isOpen ? (
+                          'Close Vacancy'
+                        ) : (
+                          'Reopen Vacancy'
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

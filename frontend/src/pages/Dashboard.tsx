@@ -79,6 +79,10 @@ export const Dashboard: React.FC = () => {
 
   const totalInPipeline = pipelineData.reduce((acc: number, cur: any) => acc + cur.value, 0);
 
+  // Open vs Closed jobs count
+  const openJobsCount = jobs.filter((j) => j.status === 'PUBLISHED' || j.status === 'OPEN').length;
+  const closedJobsCount = jobs.filter((j) => j.status === 'CLOSED').length;
+
   return (
     <div className="d-flex flex-column gap-4">
       {/* 1. Hero Banner — Clean Executive AI Recruitment Theme */}
@@ -174,10 +178,12 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <h3 className="fw-bolder text-dark mb-0" style={{ fontSize: '26px', letterSpacing: '-0.5px' }}>
-                {data?.active_jobs ?? jobs.length}
+                {openJobsCount}
               </h3>
-              <div className="text-dark small fw-semibold">Job Vacancies</div>
-              <div className="text-muted" style={{ fontSize: '11px' }}>Active roles & criteria</div>
+              <div className="text-dark small fw-semibold">Open Vacancies</div>
+              <div className="text-muted" style={{ fontSize: '11px' }}>
+                {closedJobsCount} Closed • {jobs.length} Total Roles
+              </div>
             </div>
           </div>
         </div>
@@ -461,9 +467,11 @@ export const Dashboard: React.FC = () => {
                         <td className="text-secondary small py-2.5">{job.department}</td>
                         <td className="text-secondary small py-2.5">{job.location}</td>
                         <td className="text-end py-2.5">
-                          <span className="badge-status-open">
-                            {job.status || 'PUBLISHED'}
-                          </span>
+                          {(job.status === 'PUBLISHED' || job.status === 'OPEN') ? (
+                            <span className="badge-status-open">Open</span>
+                          ) : (
+                            <span className="badge bg-secondary-subtle text-secondary border">Closed</span>
+                          )}
                         </td>
                       </tr>
                     ))

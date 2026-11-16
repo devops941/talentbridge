@@ -143,3 +143,38 @@ def get_job_by_id(job_id: str, db = Depends(get_db)):
         created_at=created_at,
         skills=skills_res
     )
+
+@router.patch("/{job_id}/status", response_model=JobResponse)
+def update_job_status(
+    job_id: str,
+    status: str,
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    norm_status = status.upper().strip()
+    if norm_status not in ["OPEN", "PUBLISHED", "CLOSED"]:
+        raise HTTPException(status_code=400, detail="Invalid status. Must be 'OPEN' or 'CLOSED'")
+
+    db_status = "PUBLISHED" if norm_status in ["OPEN", "PUBLISHED"] else "CLOSED"
+
+    job = db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job opening not found")
+
+    db.jobs.update_one(
+        {"id": job_id},
+        {"$set": {"status": db_status, "updated_at": datetime.utcnow()}}
+    )
+
+    db.audit_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "actor_id": str(user.get("id")),
+        "action": "JOB_STATUS_CHANGE",
+        "entity_type": "JOB",
+        "entity_id": job_id,
+        "metadata_json": f"Job status changed to {db_status}",
+        "created_at": datetime.utcnow()
+    })
+
+    return get_job_by_id(job_id, db)
+
