@@ -7,11 +7,8 @@ import {
   Users, 
   FileText, 
   Award, 
-  Calendar, 
-  CheckSquare, 
+  GitBranch, 
   PieChart, 
-  UserCheck, 
-  Settings, 
   Search, 
   Bell, 
   ChevronDown, 
@@ -33,14 +30,14 @@ export const AppLayout: React.FC = () => {
     navigate('/login');
   };
 
+  // Only the actual existing functional modules in TalentBridge
   const navLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/jobs', label: 'Job Vacancies', icon: Briefcase },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/resumes', label: 'Resume Screening', icon: FileText },
-    { to: '/matching', label: 'AI Rankings', icon: Award },
-    { to: '/pipeline', label: 'Interviews', icon: Calendar },
-    { to: '/pipeline?stage=offer', label: 'Offers & Hiring', icon: CheckSquare },
+    { to: '/matching', label: 'AI Match & Ranking', icon: Award },
+    { to: '/pipeline', label: 'Pipeline Board', icon: GitBranch },
     { to: '/reports', label: 'Reports & Analytics', icon: PieChart },
   ];
 
@@ -50,8 +47,8 @@ export const AppLayout: React.FC = () => {
     if (location.pathname.startsWith('/jobs')) return 'Job Vacancies';
     if (location.pathname.startsWith('/candidates')) return 'Candidates Directory';
     if (location.pathname.startsWith('/resumes')) return 'Resume Screening & Parsing';
-    if (location.pathname.startsWith('/matching')) return 'AI Scoring & Rankings';
-    if (location.pathname.startsWith('/pipeline')) return 'Interviews & Offers Pipeline';
+    if (location.pathname.startsWith('/matching')) return 'AI Match & Ranking';
+    if (location.pathname.startsWith('/pipeline')) return 'Pipeline Board';
     if (location.pathname.startsWith('/reports')) return 'Reports & Analytics Audit';
     return 'Dashboard';
   };
@@ -86,7 +83,7 @@ export const AppLayout: React.FC = () => {
         </div>
 
         {/* Quick Link to Landing Page */}
-        <div className="px-1 mb-2">
+        <div className="px-1 mb-3">
           <Link
             to="/"
             className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2 text-decoration-none border-0"
@@ -95,18 +92,18 @@ export const AppLayout: React.FC = () => {
               color: '#94A3B8',
               fontSize: '11.5px',
               borderRadius: '8px',
-              padding: '6px 12px'
+              padding: '7px 12px'
             }}
           >
             <HomeIcon size={13} /> Product Overview
           </Link>
         </div>
 
-        {/* Primary Navigation List */}
-        <nav className="nav flex-column gap-1">
+        {/* Primary Navigation List - Only Real Existing Modules */}
+        <nav className="nav flex-column gap-1 flex-grow-1">
           {navLinks.map((item) => {
             const Icon = item.icon;
-            const active = location.pathname === item.to || (item.to !== '/dashboard' && location.pathname.startsWith(item.to.split('?')[0]));
+            const active = location.pathname === item.to || (item.to !== '/dashboard' && location.pathname.startsWith(item.to));
             return (
               <Link
                 key={item.label}
@@ -118,19 +115,6 @@ export const AppLayout: React.FC = () => {
               </Link>
             );
           })}
-        </nav>
-
-        {/* Administration Section */}
-        <div className="tb-section-header">Administration</div>
-        <nav className="nav flex-column gap-1">
-          <Link to="/reports" className="tb-nav-link">
-            <UserCheck size={16} />
-            <span>Users & Roles</span>
-          </Link>
-          <Link to="/reports" className="tb-nav-link">
-            <Settings size={16} />
-            <span>Settings</span>
-          </Link>
         </nav>
 
         {/* Bottom AI-Powered Screening Card Widget */}
@@ -150,21 +134,21 @@ export const AppLayout: React.FC = () => {
               <Cpu size={16} />
             </div>
             <div className="text-white fw-bold" style={{ fontSize: '11.5px' }}>
-              AI-Powered Candidate Screening
+              AI Candidate Screening
             </div>
           </div>
           <div className="d-flex flex-column gap-1 text-light" style={{ fontSize: '11px', opacity: 0.9 }}>
             <div className="d-flex align-items-center gap-1.5">
               <CheckCircle2 size={12} color="#00D2B4" />
-              <span>Resume Parsing (NLP)</span>
+              <span>PyMuPDF Text Parsing</span>
             </div>
             <div className="d-flex align-items-center gap-1.5">
               <CheckCircle2 size={12} color="#00D2B4" />
-              <span>Skill Matching</span>
+              <span>70% Skill Coverage NLP</span>
             </div>
             <div className="d-flex align-items-center gap-1.5">
               <CheckCircle2 size={12} color="#00D2B4" />
-              <span>Candidate Ranking</span>
+              <span>30% TF-IDF Cosine Match</span>
             </div>
           </div>
         </div>
@@ -172,14 +156,14 @@ export const AppLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-grow-1 d-flex flex-column overflow-hidden" style={{ minWidth: 0 }}>
-        {/* Top Navbar matching the reference design */}
+        {/* Top Navbar */}
         <header className="tb-topbar">
           <div>
             <h4 className="m-0 fw-bold text-dark" style={{ fontSize: '20px', letterSpacing: '-0.3px' }}>
               {getPageTitle()}
             </h4>
             <div className="text-muted" style={{ fontSize: '12px' }}>
-              Welcome back! Here's your recruitment overview.
+              Welcome back! Here's your real-time recruitment overview.
             </div>
           </div>
 
@@ -196,7 +180,7 @@ export const AppLayout: React.FC = () => {
               />
             </div>
 
-            {/* Notification Bell with red alert dot */}
+            {/* Notification Bell */}
             <div className="position-relative cursor-pointer p-2 rounded-circle hover-bg-light" style={{ cursor: 'pointer' }}>
               <Bell size={20} className="text-secondary" />
               <span 
@@ -223,7 +207,7 @@ export const AppLayout: React.FC = () => {
                     {user?.name || 'Admin'}
                   </div>
                   <div className="text-muted" style={{ fontSize: '10.5px' }}>
-                    HR Manager
+                    {user?.role || 'HR Recruiter'}
                   </div>
                 </div>
                 <ChevronDown size={14} className="text-muted" />
