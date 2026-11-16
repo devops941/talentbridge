@@ -39,7 +39,13 @@ def list_candidates(query: Optional[str] = None, db = Depends(get_db)):
 
 @router.post("", response_model=CandidateResponse, status_code=status.HTTP_201_CREATED)
 def create_candidate(payload: CandidateCreate, db = Depends(get_db), user: dict = Depends(get_current_user)):
-    existing = db.candidates.find_one({"email": payload.email})
+    name_clean = payload.full_name.strip()
+    if len(name_clean) < 3:
+        raise HTTPException(status_code=400, detail="Candidate Full Name must be at least 3 characters")
+    if not payload.location or not payload.location.strip():
+        raise HTTPException(status_code=400, detail="Candidate Location is required. Please select a city/region.")
+
+    existing = db.candidates.find_one({"email": payload.email.lower().strip()})
     if existing:
         created_at = existing.get("created_at")
         if isinstance(created_at, str):
@@ -61,20 +67,20 @@ def create_candidate(payload: CandidateCreate, db = Depends(get_db), user: dict 
     now = datetime.utcnow()
     doc = {
         "id": cand_id,
-        "full_name": payload.full_name,
-        "email": payload.email,
-        "phone": payload.phone,
-        "location": payload.location,
+        "full_name": name_clean,
+        "email": payload.email.lower().strip(),
+        "phone": payload.phone.strip() if payload.phone else None,
+        "location": payload.location.strip() if payload.location else "Not Specified",
         "created_at": now
     }
     db.candidates.insert_one(doc)
 
     return CandidateResponse(
         id=cand_id,
-        full_name=payload.full_name,
-        email=payload.email,
-        phone=payload.phone,
-        location=payload.location,
+        full_name=doc["full_name"],
+        email=doc["email"],
+        phone=doc["phone"],
+        location=doc["location"],
         created_at=now,
         duplicate_warning=False
     )

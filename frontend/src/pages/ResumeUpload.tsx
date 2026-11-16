@@ -13,9 +13,6 @@ export const ResumeUpload: React.FC = () => {
   useEffect(() => {
     api.get('/candidates').then((res) => {
       setCandidates(res.data);
-      if (res.data.length > 0) {
-        setSelectedCandidate(res.data[0].id);
-      }
     });
   }, []);
 
@@ -74,13 +71,14 @@ export const ResumeUpload: React.FC = () => {
       <div className="card border-0 shadow-sm rounded-3 p-4 bg-white mb-4">
         <form onSubmit={handleUpload}>
           <div className="mb-3">
-            <label className="form-label small fw-semibold">Select Candidate Profile</label>
+            <label className="form-label small fw-semibold">Select Candidate Profile <span className="text-danger">*</span></label>
             <select 
               className="form-select"
               value={selectedCandidate}
               onChange={(e) => setSelectedCandidate(e.target.value)}
               required
             >
+              <option value="">-- Select Candidate Profile --</option>
               {candidates.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.full_name} ({c.email})
