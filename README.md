@@ -457,3 +457,43 @@ TalentBridge is engineered adhering to global AI fairness and HR governance stan
 * **License:** MIT License
 
 *Empowering Fair, Fast, and Explainable Hiring Decisions.*
+
+---
+
+## 🚀 How to Run Backend & Frontend in Terminal
+
+### Method 1: One-Command Launch (PowerShell)
+From the root `TalentBridge` directory, run:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_full_system.ps1
+```
+*This will automatically launch the backend and frontend in separate console windows.*
+
+You can also run the dedicated batch files:
+* **Backend:** Double-click or run `.\run_backend.bat`
+* **Frontend:** Double-click or run `.\run_frontend.bat`
+
+---
+
+### Method 2: Manual Terminal Execution (2 Windows)
+
+#### 🔹 Terminal 1: Backend (FastAPI)
+```powershell
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+> *(If using virtual environment: `.\venv\Scripts\activate` first)*
+
+#### 🔹 Terminal 2: Frontend (React / Vite)
+```powershell
+cd frontend
+npm run dev
+```
+
+---
+
+### 🌐 Default Access Points
+* **Frontend Application:** http://localhost:5173
+* **Backend API Swagger Docs:** http://127.0.0.1:8000/docs
+* **Demo Admin Credentials:** `admin@talentbridge.com` / `Admin@12345`
+

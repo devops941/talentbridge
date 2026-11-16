@@ -4,10 +4,10 @@ Write-Host "         Launching TalentBridge Full Stack Platform       " -Foregro
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 # 1. Start Backend in separate window
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\backend'; Write-Host 'FastAPI running on http://127.0.0.1:8000 (Docs at /docs)' -ForegroundColor Green; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
+Start-Process powershell -WorkingDirectory "$PSScriptRoot\backend" -ArgumentList "-NoExit", "-Command", "Write-Host 'FastAPI running on http://127.0.0.1:8000 (Docs at /docs)' -ForegroundColor Green; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
 
 # 2. Start Frontend in separate window
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\frontend'; Write-Host 'React Frontend running on http://localhost:5173' -ForegroundColor Cyan; npm run dev"
+Start-Process powershell -WorkingDirectory "$PSScriptRoot\frontend" -ArgumentList "-NoExit", "-Command", "Write-Host 'React Frontend running on http://localhost:5173' -ForegroundColor Cyan; npm run dev"
 
 Write-Host "`nTalentBridge backend and frontend launched in separate windows!" -ForegroundColor Green
 Write-Host "Frontend URL : http://localhost:5173" -ForegroundColor White
