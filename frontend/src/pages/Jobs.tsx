@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Plus, Briefcase, MapPin, Clock, Tag, X, Check, AlertCircle } from 'lucide-react';
+import { LinkedInSkillInput } from '../components/common/LinkedInSkillInput';
 
 const DEPARTMENTS = [
   'Engineering & Technology',
@@ -69,8 +70,6 @@ export const Jobs: React.FC = () => {
   // Skills interactive list
   const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
   const [preferredSkills, setPreferredSkills] = useState<string[]>([]);
-  const [skillInput, setSkillInput] = useState('');
-  const [skillCategory, setSkillCategory] = useState<'REQUIRED' | 'PREFERRED'>('REQUIRED');
 
   // Inline Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -114,8 +113,6 @@ export const Jobs: React.FC = () => {
     setLocation('');
     setRequiredSkills([]);
     setPreferredSkills([]);
-    setSkillInput('');
-    setSkillCategory('REQUIRED');
     setErrors({});
     setServerError(null);
   };
@@ -162,14 +159,6 @@ export const Jobs: React.FC = () => {
 
   const removePreferredSkill = (skill: string) => {
     setPreferredSkills(preferredSkills.filter((s) => s !== skill));
-  };
-
-  const handleAddCustomSkill = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (skillInput.trim()) {
-      addSkill(skillInput.trim(), skillCategory);
-      setSkillInput('');
-    }
   };
 
   const validateForm = (): boolean => {
@@ -482,147 +471,34 @@ export const Jobs: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Interactive Skills Selection Box */}
+                    {/* Interactive LinkedIn-style Skills Input */}
                     <div className="col-12">
                       <div className="p-3 bg-light rounded-3 border">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <label className="form-label small fw-bold text-dark m-0">
-                            Candidate Skills & Criteria Configuration <span className="text-danger">*</span>
-                          </label>
-                          <div className="btn-group btn-group-sm">
-                            <button
-                              type="button"
-                              className={`btn ${skillCategory === 'REQUIRED' ? 'btn-teal text-white' : 'btn-outline-secondary'}`}
-                              style={skillCategory === 'REQUIRED' ? { backgroundColor: '#0D9488', borderColor: '#0D9488' } : {}}
-                              onClick={() => setSkillCategory('REQUIRED')}
-                            >
-                              Required (70% Weight)
-                            </button>
-                            <button
-                              type="button"
-                              className={`btn ${skillCategory === 'PREFERRED' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                              onClick={() => setSkillCategory('PREFERRED')}
-                            >
-                              Preferred (0.5x Weight)
-                            </button>
-                          </div>
-                        </div>
+                        <LinkedInSkillInput
+                          label="Mandatory Required Skills"
+                          badgeText="70% Weight Engine"
+                          placeholder="Type a required skill (e.g. Python, FastAPI, React) and press Enter..."
+                          skills={requiredSkills}
+                          onAddSkill={(s) => addSkill(s, 'REQUIRED')}
+                          onRemoveSkill={removeRequiredSkill}
+                          taxonomySkills={taxonomySkills}
+                          theme="teal"
+                          helperText="Type a skill one by one and press Enter, Comma, or click an autocomplete suggestion. Click '×' on any chip to remove."
+                          error={errors.skills}
+                          required
+                        />
 
-                        {/* Custom skill input */}
-                        <div className="input-group input-group-sm mb-3">
-                          <input
-                            type="text"
-                            className="form-control"
-                            placeholder={`Type a skill and click Add (e.g. ${skillCategory === 'REQUIRED' ? 'Python, React, FastAPI' : 'Docker, Kubernetes'})...`}
-                            value={skillInput}
-                            onChange={(e) => setSkillInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                if (skillInput.trim()) {
-                                  addSkill(skillInput.trim(), skillCategory);
-                                  setSkillInput('');
-                                }
-                              }
-                            }}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-dark"
-                            onClick={handleAddCustomSkill}
-                          >
-                            + Add to {skillCategory === 'REQUIRED' ? 'Required' : 'Preferred'}
-                          </button>
-                        </div>
-
-                        {/* Quick-Pick taxonomy pills */}
-                        <div className="mb-3">
-                          <div className="text-muted small fw-semibold mb-1">
-                            Click to add from Canonical Taxonomy:
-                          </div>
-                          <div className="d-flex flex-wrap gap-1" style={{ maxHeight: '90px', overflowY: 'auto' }}>
-                            {taxonomySkills.map((sk) => {
-                              const isReq = requiredSkills.includes(sk);
-                              const isPref = preferredSkills.includes(sk);
-                              return (
-                                <button
-                                  key={sk}
-                                  type="button"
-                                  onClick={() => addSkill(sk, skillCategory)}
-                                  className={`btn btn-sm py-0 px-2 rounded-pill small ${
-                                    isReq 
-                                      ? 'btn-success text-white' 
-                                      : isPref 
-                                      ? 'btn-info text-white' 
-                                      : 'btn-outline-secondary bg-white'
-                                  }`}
-                                  style={{ fontSize: '11px' }}
-                                >
-                                  {sk} {isReq ? '✓ Req' : isPref ? '✓ Pref' : '+'}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Selected Required Skills */}
-                        <div className="mb-2">
-                          <div className="small fw-semibold text-teal mb-1" style={{ color: '#0F766E' }}>
-                            ★ Mandatory Required Skills ({requiredSkills.length}):
-                          </div>
-                          {requiredSkills.length === 0 ? (
-                            <span className="text-muted small fst-italic">No required skills selected yet. Select from taxonomy pills above or type to add.</span>
-                          ) : (
-                            <div className="d-flex flex-wrap gap-1">
-                              {requiredSkills.map((sk) => (
-                                <span
-                                  key={sk}
-                                  className="badge d-inline-flex align-items-center gap-1 py-1 px-2 text-white"
-                                  style={{ backgroundColor: '#0D9488' }}
-                                >
-                                  {sk}
-                                  <X
-                                    size={13}
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => removeRequiredSkill(sk)}
-                                  />
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Selected Preferred Skills */}
-                        <div>
-                          <div className="small fw-semibold text-primary mb-1">
-                            Optional Preferred Skills ({preferredSkills.length}):
-                          </div>
-                          {preferredSkills.length === 0 ? (
-                            <span className="text-muted small fst-italic">No preferred skills selected.</span>
-                          ) : (
-                            <div className="d-flex flex-wrap gap-1">
-                              {preferredSkills.map((sk) => (
-                                <span
-                                  key={sk}
-                                  className="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1 py-1 px-2"
-                                >
-                                  {sk}
-                                  <X
-                                    size={13}
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => removePreferredSkill(sk)}
-                                  />
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {errors.skills && (
-                          <div className="alert alert-danger py-2 px-3 small mt-2 mb-0">
-                            {errors.skills}
-                          </div>
-                        )}
+                        <LinkedInSkillInput
+                          label="Optional Preferred Skills"
+                          badgeText="0.5x Bonus Weight"
+                          placeholder="Type an optional bonus skill (e.g. Docker, AWS, Kubernetes)..."
+                          skills={preferredSkills}
+                          onAddSkill={(s) => addSkill(s, 'PREFERRED')}
+                          onRemoveSkill={removePreferredSkill}
+                          taxonomySkills={taxonomySkills}
+                          theme="indigo"
+                          helperText="Secondary skills that give applicants a competitive score advantage."
+                        />
                       </div>
                     </div>
                   </div>
