@@ -15,3 +15,4 @@ Write-Host "Backend API  : http://127.0.0.1:8000" -ForegroundColor White
 Write-Host "Swagger Docs : http://127.0.0.1:8000/docs" -ForegroundColor White
 Write-Host "Demo Login   : admin@talentbridge.com / Admin@12345" -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
+

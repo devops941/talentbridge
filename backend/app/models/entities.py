@@ -172,3 +172,4 @@ class AuditLog(Base):
     entity_id = Column(String(36))
     metadata_json = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+

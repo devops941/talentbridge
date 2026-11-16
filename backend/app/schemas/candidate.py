@@ -16,3 +16,4 @@ class CandidateResponse(BaseModel):
     location: Optional[str]
     created_at: datetime
     duplicate_warning: bool = False
+

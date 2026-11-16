@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+import uuid
+from datetime import datetime
 from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.entities import (
-    Application, ApplicationStageHistory, CandidateReview, User
-)
 from app.schemas.pipeline import (
     StageUpdateRequest, ReviewCreateRequest, ReviewResponse, StageHistoryResponse
 )
@@ -27,28 +25,34 @@ ALLOWED_STAGES = [
 def update_application_stage(
     application_id: str,
     payload: StageUpdateRequest,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
     if payload.to_stage not in ALLOWED_STAGES:
         raise HTTPException(status_code=400, detail=f"Invalid stage. Must be one of {ALLOWED_STAGES}")
 
-    app = db.query(Application).filter(Application.id == application_id).first()
+    app = db.applications.find_one({"id": application_id})
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
 
-    old_stage = app.current_stage
-    app.current_stage = payload.to_stage
+    old_stage = app.get("current_stage", "Application Received")
+    now = datetime.utcnow()
 
-    # Record stage history
-    history = ApplicationStageHistory(
-        application_id=app.id,
-        from_stage=old_stage,
-        to_stage=payload.to_stage,
-        changed_by=user.id
+    db.applications.update_one(
+        {"id": application_id},
+        {"$set": {"current_stage": payload.to_stage, "updated_at": now}}
     )
-    db.add(history)
-    db.commit()
+
+    # Insert stage history
+    db.application_stage_history.insert_one({
+        "id": str(uuid.uuid4()),
+        "application_id": application_id,
+        "from_stage": old_stage,
+        "to_stage": payload.to_stage,
+        "changed_by": str(user.get("id")),
+        "changed_by_name": user.get("name", "Recruiter"),
+        "changed_at": now
+    })
 
     return {"message": f"Application stage updated to {payload.to_stage}"}
 
@@ -56,39 +60,46 @@ def update_application_stage(
 def add_candidate_review(
     application_id: str,
     payload: ReviewCreateRequest,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    app = db.query(Application).filter(Application.id == application_id).first()
+    app = db.applications.find_one({"id": application_id})
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
 
-    review = CandidateReview(
-        application_id=app.id,
-        reviewer_id=user.id,
-        rating=payload.rating,
-        notes=payload.notes
-    )
-    db.add(review)
-    db.commit()
+    now = datetime.utcnow()
+    db.candidate_reviews.insert_one({
+        "id": str(uuid.uuid4()),
+        "application_id": application_id,
+        "reviewer_id": str(user.get("id")),
+        "reviewer_name": user.get("name", "Recruiter"),
+        "rating": payload.rating,
+        "notes": payload.notes,
+        "created_at": now
+    })
+
     return {"message": "Candidate review added successfully"}
 
 @router.get("/applications/{application_id}/history", response_model=List[StageHistoryResponse])
 def get_stage_history(
     application_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    records = db.query(ApplicationStageHistory).filter(
-        ApplicationStageHistory.application_id == application_id
-    ).order_by(ApplicationStageHistory.changed_at.asc()).all()
+    cursor = db.application_stage_history.find({"application_id": application_id}).sort("changed_at", 1)
+    results = []
+    for idx, r in enumerate(cursor):
+        changed_at = r.get("changed_at")
+        if isinstance(changed_at, str):
+            changed_at = datetime.fromisoformat(changed_at)
+        elif not isinstance(changed_at, datetime):
+            changed_at = datetime.utcnow()
 
-    return [
-        StageHistoryResponse(
-            id=r.id,
-            from_stage=r.from_stage,
-            to_stage=r.to_stage,
-            changed_by_name=db.query(User).filter(User.id == r.changed_by).first().name,
-            changed_at=r.changed_at
-        ) for r in records
-    ]
+        results.append(StageHistoryResponse(
+            id=idx + 1,
+            from_stage=r.get("from_stage"),
+            to_stage=r.get("to_stage"),
+            changed_by_name=r.get("changed_by_name", "Recruiter"),
+            changed_at=changed_at
+        ))
+    return results

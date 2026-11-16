@@ -2,8 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.core.database import engine
-from app.models.entities import Base
+from app.core.database import init_mongo_indexes
 from app.routes.auth import router as auth_router
 from app.routes.jobs import router as jobs_router
 from app.routes.candidates import router as candidates_router
@@ -13,26 +12,28 @@ from app.routes.pipeline import router as pipeline_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.reports import router as reports_router
 
-# Ensure tables and upload directory exist
-Base.metadata.create_all(bind=engine)
+# Ensure local private upload storage directory exists
 os.makedirs(settings.UPLOAD_STORAGE_PATH, exist_ok=True)
+
+# Initialize MongoDB collection indexes
+init_mongo_indexes()
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="Intelligent Candidate Screening and Ranking System REST API",
+    description="TalentBridge: Intelligent Candidate Screening and Ranking REST API (MongoDB Atlas)",
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS if settings.CORS_ORIGINS else ["*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include Routers
+# Mount Routes
 app.include_router(auth_router)
 app.include_router(jobs_router)
 app.include_router(candidates_router)
@@ -48,6 +49,8 @@ def health_check():
     return {
         "status": "healthy",
         "application": settings.APP_NAME,
+        "database": "MongoDB Atlas",
+        "cluster": "Cluster0",
         "environment": settings.APP_ENV,
         "version": "1.0.0"
     }

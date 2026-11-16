@@ -34,3 +34,4 @@ class JobResponse(BaseModel):
     status: str
     created_at: datetime
     skills: List[JobSkillResponse] = []
+

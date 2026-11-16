@@ -205,3 +205,4 @@ export const Candidates: React.FC = () => {
     </div>
   );
 };
+

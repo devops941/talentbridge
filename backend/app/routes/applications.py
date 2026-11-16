@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+import uuid
+from datetime import datetime
 from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.entities import (
-    Application, Candidate, Job, Resume, ResumeSkill, MatchResult, MatchSkillDetail, User
-)
 from app.ml.matcher import calculate_match
 from app.schemas.matching import MatchResultResponse
 
@@ -16,161 +14,166 @@ def apply_candidate_to_job(
     candidate_id: str,
     job_id: str,
     resume_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    existing = db.query(Application).filter(
-        Application.candidate_id == candidate_id,
-        Application.job_id == job_id
-    ).first()
+    existing = db.applications.find_one({
+        "candidate_id": candidate_id,
+        "job_id": job_id
+    })
     if existing:
-        return {"application_id": existing.id, "status": "already_applied"}
+        return {"application_id": str(existing.get("id")), "status": "already_applied"}
 
-    app = Application(
-        candidate_id=candidate_id,
-        job_id=job_id,
-        resume_id=resume_id,
-        current_stage="Application Received"
-    )
-    db.add(app)
-    db.commit()
-    db.refresh(app)
+    app_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+    app_doc = {
+        "id": app_id,
+        "candidate_id": candidate_id,
+        "job_id": job_id,
+        "resume_id": resume_id,
+        "current_stage": "Application Received",
+        "applied_at": now
+    }
+    db.applications.insert_one(app_doc)
 
     # Immediately calculate match for recruiter convenience
-    calculate_application_match_internal(app.id, db)
+    calculate_application_match_internal(app_id, db)
 
-    return {"application_id": app.id, "status": "created"}
+    return {"application_id": app_id, "status": "created"}
 
-def calculate_application_match_internal(application_id: str, db: Session):
-    app = db.query(Application).filter(Application.id == application_id).first()
+def calculate_application_match_internal(application_id: str, db):
+    app = db.applications.find_one({"id": application_id})
     if not app:
         return None
 
-    job = app.job
-    resume = app.resume
+    job = db.jobs.find_one({"id": app.get("job_id")})
+    resume = db.resumes.find_one({"id": app.get("resume_id")})
 
-    if not resume.extraction or not resume.extraction.extracted_text:
+    if not job or not resume:
         return None
 
+    extracted_text = resume.get("extracted_text", "")
+    job_description = job.get("description", "")
+
     req_skills = [
-        {"skill_id": js.skill_id, "skill_name": js.skill.canonical_name}
-        for js in job.skills if js.requirement_type == "REQUIRED"
+        {"skill_id": idx + 1, "skill_name": s.get("skill_name")}
+        for idx, s in enumerate(job.get("skills", []))
+        if s.get("requirement_type") == "REQUIRED"
     ]
     pref_skills = [
-        {"skill_id": js.skill_id, "skill_name": js.skill.canonical_name}
-        for js in job.skills if js.requirement_type == "PREFERRED"
+        {"skill_id": idx + 1, "skill_name": s.get("skill_name")}
+        for idx, s in enumerate(job.get("skills", []))
+        if s.get("requirement_type") == "PREFERRED"
     ]
 
     cand_skills = [
-        {"skill_id": rs.skill_id, "canonical_name": rs.skill.canonical_name}
-        for rs in resume.skills
+        {"skill_id": idx + 1, "canonical_name": s.get("canonical_name")}
+        for idx, s in enumerate(resume.get("skills", []))
     ]
 
     match_data = calculate_match(
-        job_description=job.description,
+        job_description=job_description,
         required_skills=req_skills,
         preferred_skills=pref_skills,
-        resume_text=resume.extraction.extracted_text,
+        resume_text=extracted_text,
         candidate_skills=cand_skills
     )
 
-    match_rec = db.query(MatchResult).filter(MatchResult.application_id == app.id).first()
-    if not match_rec:
-        match_rec = MatchResult(
-            application_id=app.id,
-            score=match_data["score"],
-            skill_score=match_data["skill_score"],
-            text_score=match_data["text_score"],
-            model_version=match_data["model_version"],
-            explanation=match_data["explanation"]
-        )
-        db.add(match_rec)
-    else:
-        match_rec.score = match_data["score"]
-        match_rec.skill_score = match_data["skill_score"]
-        match_rec.text_score = match_data["text_score"]
-        match_rec.explanation = match_data["explanation"]
-
-    db.commit()
-    db.refresh(match_rec)
+    now = datetime.utcnow()
+    db.match_results.update_one(
+        {"application_id": application_id},
+        {"$set": {
+            "application_id": application_id,
+            "score": match_data["score"],
+            "skill_score": match_data["skill_score"],
+            "text_score": match_data["text_score"],
+            "model_version": match_data["model_version"],
+            "explanation": match_data["explanation"],
+            "matched_skills": match_data["matched_skills"],
+            "missing_required_skills": match_data["missing_required_skills"],
+            "updated_at": now
+        }},
+        upsert=True
+    )
     return match_data
 
 @router.post("/{application_id}/match", response_model=MatchResultResponse)
 def trigger_application_matching(
     application_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    app = db.query(Application).filter(Application.id == application_id).first()
+    app = db.applications.find_one({"id": application_id})
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-
-    if not app.resume.extraction or not app.resume.extraction.extracted_text:
-        raise HTTPException(status_code=400, detail="Resume has not been parsed yet")
 
     calculate_application_match_internal(application_id, db)
     return get_application_match_result(application_id, db)
 
-def get_application_match_result(application_id: str, db: Session) -> MatchResultResponse:
-    app = db.query(Application).filter(Application.id == application_id).first()
-    mr = db.query(MatchResult).filter(MatchResult.application_id == app.id).first()
+def get_application_match_result(application_id: str, db) -> MatchResultResponse:
+    app = db.applications.find_one({"id": application_id})
+    mr = db.match_results.find_one({"application_id": application_id})
+    cand = db.candidates.find_one({"id": app.get("candidate_id")})
 
-    req_skills = [js.skill.canonical_name for js in app.job.skills if js.requirement_type == "REQUIRED"]
-    cand_skills = [rs.skill.canonical_name for rs in app.resume.skills]
-    matched = [s for s in req_skills if s in cand_skills]
-    missing = [s for s in req_skills if s not in cand_skills]
+    applied_at = app.get("applied_at")
+    if isinstance(applied_at, str):
+        applied_at = datetime.fromisoformat(applied_at)
+    elif not isinstance(applied_at, datetime):
+        applied_at = datetime.utcnow()
 
     return MatchResultResponse(
-        application_id=app.id,
-        candidate_id=app.candidate.id,
-        candidate_name=app.candidate.full_name,
-        candidate_email=app.candidate.email,
-        score=mr.score if mr else 0.0,
-        skill_score=mr.skill_score if mr else 0.0,
-        text_score=mr.text_score if mr else 0.0,
-        model_version=mr.model_version if mr else "baseline-v1",
-        explanation=mr.explanation if mr else "Pending match calculation",
-        matched_skills=matched,
-        missing_required_skills=missing,
-        current_stage=app.current_stage,
-        applied_at=app.applied_at
+        application_id=app.get("id"),
+        candidate_id=cand.get("id") if cand else "",
+        candidate_name=cand.get("full_name") if cand else "Candidate",
+        candidate_email=cand.get("email") if cand else "",
+        score=mr.get("score", 0.0) if mr else 0.0,
+        skill_score=mr.get("skill_score", 0.0) if mr else 0.0,
+        text_score=mr.get("text_score", 0.0) if mr else 0.0,
+        model_version=mr.get("model_version", "baseline-v1") if mr else "baseline-v1",
+        explanation=mr.get("explanation", "") if mr else "Pending match calculation",
+        matched_skills=mr.get("matched_skills", []) if mr else [],
+        missing_required_skills=mr.get("missing_required_skills", []) if mr else [],
+        current_stage=app.get("current_stage", "Application Received"),
+        applied_at=applied_at
     )
 
 @router.get("/job/{job_id}/rankings", response_model=List[MatchResultResponse])
 def get_job_rankings(
     job_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    apps = db.query(Application).filter(Application.job_id == job_id).all()
+    apps = list(db.applications.find({"job_id": job_id}))
     results = []
 
     for app in apps:
-        mr = db.query(MatchResult).filter(MatchResult.application_id == app.id).first()
+        app_id = app.get("id")
+        mr = db.match_results.find_one({"application_id": app_id})
         if not mr:
-            # compute on the fly
-            calculate_application_match_internal(app.id, db)
-            mr = db.query(MatchResult).filter(MatchResult.application_id == app.id).first()
+            calculate_application_match_internal(app_id, db)
+            mr = db.match_results.find_one({"application_id": app_id})
 
-        req_skills = [js.skill.canonical_name for js in app.job.skills if js.requirement_type == "REQUIRED"]
-        cand_skills = [rs.skill.canonical_name for rs in app.resume.skills] if app.resume else []
-        matched = [s for s in req_skills if s in cand_skills]
-        missing = [s for s in req_skills if s not in cand_skills]
+        cand = db.candidates.find_one({"id": app.get("candidate_id")})
+        applied_at = app.get("applied_at")
+        if isinstance(applied_at, str):
+            applied_at = datetime.fromisoformat(applied_at)
+        elif not isinstance(applied_at, datetime):
+            applied_at = datetime.utcnow()
 
         results.append(MatchResultResponse(
-            application_id=app.id,
-            candidate_id=app.candidate.id,
-            candidate_name=app.candidate.full_name,
-            candidate_email=app.candidate.email,
-            score=mr.score if mr else 0.0,
-            skill_score=mr.skill_score if mr else 0.0,
-            text_score=mr.text_score if mr else 0.0,
-            model_version=mr.model_version if mr else "baseline-v1",
-            explanation=mr.explanation if mr else "",
-            matched_skills=matched,
-            missing_required_skills=missing,
-            current_stage=app.current_stage,
-            applied_at=app.applied_at
+            application_id=app_id,
+            candidate_id=cand.get("id") if cand else "",
+            candidate_name=cand.get("full_name") if cand else "Candidate",
+            candidate_email=cand.get("email") if cand else "",
+            score=mr.get("score", 0.0) if mr else 0.0,
+            skill_score=mr.get("skill_score", 0.0) if mr else 0.0,
+            text_score=mr.get("text_score", 0.0) if mr else 0.0,
+            model_version=mr.get("model_version", "baseline-v1") if mr else "baseline-v1",
+            explanation=mr.get("explanation", "") if mr else "",
+            matched_skills=mr.get("matched_skills", []) if mr else [],
+            missing_required_skills=mr.get("missing_required_skills", []) if mr else [],
+            current_stage=app.get("current_stage", "Application Received"),
+            applied_at=applied_at
         ))
 
     # Deterministic Tie-Breaker: Score DESC -> Skill Score DESC -> Applied At ASC

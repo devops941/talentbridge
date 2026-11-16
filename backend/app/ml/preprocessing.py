@@ -27,3 +27,4 @@ def normalize_text_for_search(text: str) -> str:
     Lowercases text while keeping punctuation intact for technical token matching.
     """
     return text.lower().strip()
+

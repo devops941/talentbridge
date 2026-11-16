@@ -16,3 +16,4 @@ class MatchResultResponse(BaseModel):
     missing_required_skills: List[str]
     current_stage: str
     applied_at: datetime
+

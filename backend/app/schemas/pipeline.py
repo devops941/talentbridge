@@ -23,3 +23,4 @@ class StageHistoryResponse(BaseModel):
     to_stage: str
     changed_by_name: str
     changed_at: datetime
+

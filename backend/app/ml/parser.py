@@ -47,3 +47,4 @@ def extract_text_from_pdf(pdf_path: str) -> Tuple[str, Dict]:
     finally:
         if doc:
             doc.close()
+

@@ -1,29 +1,27 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.entities import Job, Candidate, Resume, Application, User
 from app.schemas.dashboard import DashboardSummaryResponse, StageCount
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["Dashboard & Analytics"])
 
 @router.get("/summary", response_model=DashboardSummaryResponse)
-def get_dashboard_summary(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    active_jobs = db.query(Job).filter(Job.status == "PUBLISHED").count()
-    total_candidates = db.query(Candidate).count()
-    total_applications = db.query(Application).count()
-    resumes_processed = db.query(Resume).filter(Resume.parse_status == "COMPLETED").count()
-    shortlisted_candidates = db.query(Application).filter(Application.current_stage == "Shortlisted").count()
-    interviews_scheduled = db.query(Application).filter(Application.current_stage == "Interview Scheduled").count()
+def get_dashboard_summary(db = Depends(get_db), user: dict = Depends(get_current_user)):
+    active_jobs = db.jobs.count_documents({"status": "PUBLISHED"})
+    total_candidates = db.candidates.count_documents({})
+    total_applications = db.applications.count_documents({})
+    resumes_processed = db.resumes.count_documents({"parse_status": "COMPLETED"})
+    shortlisted_candidates = db.applications.count_documents({"current_stage": "Shortlisted"})
+    interviews_scheduled = db.applications.count_documents({"current_stage": "Interview Scheduled"})
 
-    stage_counts = (
-        db.query(Application.current_stage, func.count(Application.id))
-        .group_by(Application.current_stage)
-        .all()
-    )
-
-    funnel = [StageCount(stage=s, count=c) for s, c in stage_counts]
+    pipeline = [
+        {"$group": {"_id": "$current_stage", "count": {"$sum": 1}}}
+    ]
+    stage_counts = list(db.applications.aggregate(pipeline))
+    funnel = [
+        StageCount(stage=item.get("_id", "Unknown"), count=item.get("count", 0))
+        for item in stage_counts
+    ]
 
     return DashboardSummaryResponse(
         active_jobs=active_jobs,

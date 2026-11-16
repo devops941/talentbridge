@@ -4,10 +4,8 @@ import bcrypt
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.entities import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -27,7 +25,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -41,14 +39,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None or user.status != "ACTIVE":
+    db = get_db()
+    user = db.users.find_one({"id": user_id})
+    if user is None or user.get("status") != "ACTIVE":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive or disabled")
     return user
 
 def require_roles(allowed_roles: List[str]):
-    def role_checker(current_user: User = Depends(get_current_user)):
-        if current_user.role.role_name not in allowed_roles:
+    def role_checker(current_user: dict = Depends(get_current_user)):
+        if current_user.get("role") not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Required roles: {allowed_roles}"

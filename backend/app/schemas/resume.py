@@ -27,3 +27,4 @@ class ResumeDetailResponse(BaseModel):
     extracted_text: Optional[str] = None
     skills: List[ResumeSkillItem] = []
     created_at: datetime
+

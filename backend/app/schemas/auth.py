@@ -19,3 +19,4 @@ class UserProfileResponse(BaseModel):
     email: str
     role: str
     status: str
+

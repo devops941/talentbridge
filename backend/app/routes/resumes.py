@@ -1,14 +1,12 @@
 import os
 import hashlib
 import uuid
-from typing import List
+from datetime import datetime
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.entities import Candidate, Resume, ResumeExtraction, ResumeSkill, Skill, User
 from app.schemas.resume import ResumeResponse, ResumeDetailResponse, ResumeSkillItem
 from app.ml.parser import extract_text_from_pdf
 from app.ml.skill_extractor import extract_skills_from_text
@@ -19,12 +17,12 @@ router = APIRouter(prefix="/api/v1/resumes", tags=["Resumes"])
 async def upload_resume(
     candidate_id: str = Form(...),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    candidate = db.candidates.find_one({"id": candidate_id})
     if not candidate:
-        raise HTTPException(status_code=404, detail="Candidate not found")
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
 
     content = await file.read()
     file_size = len(content)
@@ -38,12 +36,24 @@ async def upload_resume(
 
     checksum = hashlib.sha256(content).hexdigest()
 
-    existing = db.query(Resume).filter(
-        Resume.candidate_id == candidate_id,
-        Resume.checksum == checksum
-    ).first()
+    existing = db.resumes.find_one({"candidate_id": candidate_id, "checksum": checksum})
     if existing:
-        return existing
+        created_at = existing.get("created_at")
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+        elif not isinstance(created_at, datetime):
+            created_at = datetime.utcnow()
+
+        return ResumeResponse(
+            id=str(existing.get("id")),
+            candidate_id=existing.get("candidate_id"),
+            original_filename=existing.get("original_filename"),
+            mime_type=existing.get("mime_type", "application/pdf"),
+            file_size=existing.get("file_size"),
+            checksum=existing.get("checksum"),
+            parse_status=existing.get("parse_status"),
+            created_at=created_at
+        )
 
     storage_filename = f"{uuid.uuid4().hex}.pdf"
     os.makedirs(settings.UPLOAD_STORAGE_PATH, exist_ok=True)
@@ -51,121 +61,103 @@ async def upload_resume(
     with open(storage_path, "wb") as f:
         f.write(content)
 
-    resume = Resume(
+    resume_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+
+    # Extract text & skills
+    text, meta = extract_text_from_pdf(storage_path)
+    skills_found = extract_skills_from_text(text, db)
+
+    skills_data = [
+        {
+            "skill_id": idx + 1,
+            "canonical_name": s["canonical_name"],
+            "evidence_text": s["evidence"][:250],
+            "confidence": 1.0
+        } for idx, s in enumerate(skills_found)
+    ]
+
+    resume_doc = {
+        "id": resume_id,
+        "candidate_id": candidate_id,
+        "storage_key": storage_filename,
+        "original_filename": file.filename,
+        "mime_type": "application/pdf",
+        "file_size": file_size,
+        "checksum": checksum,
+        "parse_status": meta["status"],
+        "extracted_text": text,
+        "skills": skills_data,
+        "created_at": now
+    }
+    db.resumes.insert_one(resume_doc)
+
+    return ResumeResponse(
+        id=resume_id,
         candidate_id=candidate_id,
-        storage_key=storage_filename,
         original_filename=file.filename,
         mime_type="application/pdf",
         file_size=file_size,
         checksum=checksum,
-        parse_status="UPLOADED"
+        parse_status=meta["status"],
+        created_at=now
     )
-    db.add(resume)
-    db.commit()
-    db.refresh(resume)
-
-    # Automatically trigger extraction & skill mining
-    process_resume_internal(resume.id, db)
-
-    return resume
-
-def process_resume_internal(resume_id: str, db: Session):
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
-    if not resume:
-        return
-
-    filepath = os.path.join(settings.UPLOAD_STORAGE_PATH, resume.storage_key)
-    resume.parse_status = "PROCESSING"
-    db.commit()
-
-    text, meta = extract_text_from_pdf(filepath)
-    resume.parse_status = meta["status"]
-
-    extraction = db.query(ResumeExtraction).filter(ResumeExtraction.resume_id == resume.id).first()
-    if not extraction:
-        extraction = ResumeExtraction(
-            resume_id=resume.id,
-            extracted_text=text,
-            parser_version="PyMuPDF-v1.0"
-        )
-        db.add(extraction)
-    else:
-        extraction.extracted_text = text
-
-    # Extract Skills
-    skills = extract_skills_from_text(text, db)
-    db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume.id).delete()
-
-    for s in skills:
-        rs = ResumeSkill(
-            resume_id=resume.id,
-            skill_id=s["skill_id"],
-            evidence_text=s["evidence"][:250],
-            confidence=s["confidence"]
-        )
-        db.add(rs)
-
-    db.commit()
-    db.refresh(resume)
-
-@router.post("/{resume_id}/process", response_model=ResumeResponse)
-def trigger_resume_process(
-    resume_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
-    if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    process_resume_internal(resume_id, db)
-    return resume
 
 @router.get("/{resume_id}", response_model=ResumeDetailResponse)
 def get_resume_details(
     resume_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    resume = db.resumes.find_one({"id": resume_id})
     if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
+        raise HTTPException(status_code=404, detail="Resume record not found")
+
+    candidate = db.candidates.find_one({"id": resume.get("candidate_id")})
+    cand_name = candidate.get("full_name") if candidate else "Candidate"
 
     skills_list = [
         ResumeSkillItem(
-            skill_id=rs.skill_id,
-            canonical_name=rs.skill.canonical_name,
-            evidence_text=rs.evidence_text,
-            confidence=rs.confidence
-        ) for rs in resume.skills
+            skill_id=s.get("skill_id", idx + 1),
+            canonical_name=s.get("canonical_name"),
+            evidence_text=s.get("evidence_text"),
+            confidence=s.get("confidence", 1.0)
+        ) for idx, s in enumerate(resume.get("skills", []))
     ]
 
+    created_at = resume.get("created_at")
+    if isinstance(created_at, str):
+        created_at = datetime.fromisoformat(created_at)
+    elif not isinstance(created_at, datetime):
+        created_at = datetime.utcnow()
+
     return ResumeDetailResponse(
-        id=resume.id,
-        candidate_id=resume.candidate_id,
-        candidate_name=resume.candidate.full_name,
-        original_filename=resume.original_filename,
-        parse_status=resume.parse_status,
-        extracted_text=resume.extraction.extracted_text if resume.extraction else None,
+        id=str(resume.get("id")),
+        candidate_id=resume.get("candidate_id"),
+        candidate_name=cand_name,
+        original_filename=resume.get("original_filename"),
+        parse_status=resume.get("parse_status"),
+        extracted_text=resume.get("extracted_text"),
         skills=skills_list,
-        created_at=resume.created_at
+        created_at=created_at
     )
 
 @router.get("/{resume_id}/file")
 def view_resume_file(
     resume_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    db = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    resume = db.resumes.find_one({"id": resume_id})
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    filepath = os.path.join(settings.UPLOAD_STORAGE_PATH, resume.storage_key)
+    filepath = os.path.join(settings.UPLOAD_STORAGE_PATH, resume.get("storage_key"))
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found on storage")
 
     return FileResponse(
         path=filepath,
         media_type="application/pdf",
-        filename=resume.original_filename
+        filename=resume.get("original_filename")
     )

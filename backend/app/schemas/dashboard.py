@@ -13,3 +13,4 @@ class DashboardSummaryResponse(BaseModel):
     shortlisted_candidates: int
     interviews_scheduled: int
     stage_funnel: List[StageCount]
+

@@ -38,3 +38,4 @@ def test_skill_coverage_and_combined_score():
     assert "REST API" in match["missing_required_skills"]
     assert "Python" in match["matched_skills"]
     assert match["score"] > 52.5 # 0.70 * 75 = 52.5 + text similarity
+
